@@ -16,13 +16,15 @@
 //   knee      true if it loads the knee (your PT flag area)
 //   ptAlways  true if it always says "mention to your PT"
 //   evidence  ids from evidence.js shown as badges
+//   notHere   away from home, the move the "Not here" button swaps in when
+//             the hotel doesn't have what this one needs (no door, no rack...)
 
 const EXERCISES = {
   // ----- Squat -----
   'goblet-squat': {
     name: 'Goblet Squat to Box', pattern: 'squat', load: 'db-one', startKg: 6, reps: [8, 12],
     cues: ['Sit back to the box, then stand tall', 'Elbows inside your knees'],
-    easier: 'sit-to-stand', sprite: 'goblet-squat', knee: true,
+    easier: 'sit-to-stand', sprite: 'goblet-squat', knee: true, notHere: 'sit-to-stand',
     evidence: ['acsm-novice', 'loads-near-failure'],
   },
   'sit-to-stand': {
@@ -36,7 +38,7 @@ const EXERCISES = {
   'db-rdl': {
     name: 'Dumbbell Romanian Deadlift', pattern: 'hinge', load: 'db-pair', startKg: 6, reps: [8, 12],
     cues: ['Push your hips back, like closing a car door with your butt', 'Weights slide down your thighs'],
-    easier: 'glute-bridge', sprite: 'db-rdl',
+    easier: 'glute-bridge', sprite: 'db-rdl', notHere: 'glute-bridge',
     evidence: ['acsm-novice', 'loads-near-failure'],
   },
   'glute-bridge': {
@@ -64,14 +66,20 @@ const EXERCISES = {
   'one-arm-row': {
     name: 'One-Arm Row', pattern: 'pull', load: 'db-one', startKg: 6, reps: [8, 12], perSide: 'each arm',
     cues: ['Pull your elbow back toward your hip', 'Keep your back flat like a table'],
-    easier: 'band-row', sprite: 'one-arm-row',
+    easier: 'band-row', sprite: 'one-arm-row', notHere: 'backpack-row',
     evidence: ['acsm-novice', 'loads-near-failure'],
   },
   'band-row': {
     name: 'Band Row', pattern: 'pull', load: 'band', reps: [10, 15],
     cues: ['Squeeze your shoulder blades together', 'Pull to your ribs, let it back slowly'],
-    easier: null, sprite: 'one-arm-row',
+    easier: null, sprite: 'one-arm-row', notHere: 'backpack-row',
     evidence: ['bands'],
+  },
+  'backpack-row': {
+    name: 'Backpack Row', pattern: 'pull', load: 'body', reps: [10, 15], perSide: 'each arm',
+    cues: ['Fill your backpack. One hand on the desk, pull the bag to your hip', 'Keep your back flat like a table'],
+    easier: null, sprite: 'one-arm-row',
+    evidence: ['loads-near-failure'],
   },
 
   // ----- Press -----
@@ -92,7 +100,7 @@ const EXERCISES = {
   'lateral-walk': {
     name: 'Banded Lateral Walk', pattern: 'hips', load: 'band', reps: [10, 15], perSide: 'steps each way',
     cues: ['Small steps, toes pointing forward', 'Stay a little low, like you\'re half sitting'],
-    easier: 'side-leg-raise', sprite: 'lateral-walk',
+    easier: 'side-leg-raise', sprite: 'lateral-walk', notHere: 'side-leg-raise',
     evidence: ['hip-knee', 'bands'],
   },
   'side-leg-raise': {

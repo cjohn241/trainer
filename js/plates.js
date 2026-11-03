@@ -4,13 +4,21 @@
 //   'db-one'   one dumbbell: 2 ends, so each end can take half of each plate size
 //   'db-pair'  two dumbbells: 4 ends, so each end can take a quarter
 //   'kb'       the kettlebell: one center stack, can take every plate
+//   'lb'       a hotel gym dumbbell, in POUNDS (one in your hand)
+//   'lb-pair'  two hotel gym dumbbells, in pounds each
 // Both ends of a dumbbell always match, so it stays balanced.
+// For the two hotel kinds, the number stored as "kg" below is really pounds:
+// the hotel's rack has fixed sizes, so there are no plates to work out.
 
 const optionCache = {};
 
 /** Every weight you can build for one tool, lightest first: [{ kg, plates }]. */
 function loadOptions(kind) {
   if (optionCache[kind]) return optionCache[kind];
+  if (kind === 'lb' || kind === 'lb-pair') {
+    optionCache[kind] = EQUIPMENT.hotelDumbbellsLb.map((lb) => ({ kg: lb, plates: [] }));
+    return optionCache[kind];
+  }
 
   const ends = kind === 'db-pair' ? 4 : kind === 'db-one' ? 2 : 1;
   const endsPerBell = kind === 'kb' ? 1 : 2;
@@ -60,6 +68,10 @@ function kgText(kg) {
 
 /** What to show for a weight: the big number, and which plates go on. */
 function describeLoad(kind, kg) {
+  if (kind === 'lb' || kind === 'lb-pair') { // hotel rack: pounds first, kg underneath
+    const each = kind === 'lb-pair' ? ' each' : '';
+    return { big: `${kgText(kg)} lb${each}`, plates: `About ${kgText(Math.round(kg * 0.4536 * 10) / 10)} kg${each}` };
+  }
   const option = loadOptions(kind).find((o) => o.kg === kg);
   const plates = option ? option.plates.map(kgText).join(' + ') : '';
   if (kind === 'kb') return { big: `${kgText(kg)} kg`, plates: `Stack: ${plates}` };

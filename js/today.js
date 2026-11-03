@@ -66,8 +66,11 @@ async function closeOpenQuests() {
   }
 }
 
-/** Start a new quest and save it. Any quest still open is closed first. */
-async function startQuest(templateId, energy) {
+/**
+ * Start a new quest and save it. Any quest still open is closed first.
+ * place: 'home', or at the Outpost 'room' or 'gym' (each keeps its own weights).
+ */
+async function startQuest(templateId, energy, place = 'home') {
   await closeOpenQuests();
   const profile = await db.get('profile', 'me');
   const id = energy === 1 ? 'tiny' : templateId;
@@ -79,7 +82,7 @@ async function startQuest(templateId, energy) {
     templateId: id,
     kind: id === 'tiny' ? 'tiny' : 'strength',
     energy,
-    place: 'home',
+    place,
     week: weekNumber(profile.startDate),
     steps: buildSteps(id, energy, weekNumber(profile.startDate), profile.kneeEasy),
     done: [],     // every set you log: { step, exercise, reps, load, seconds, at }

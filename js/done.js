@@ -3,6 +3,7 @@
 //   - Mara's power pose (tap her to skip it)
 //   - XP, and a level-up if you got one
 //   - the loot chest: one roll per win, saved to your inventory
+//   - after "Did my PT exercises": the new gem in the yoga mat chest
 //   - the knee check, after strength and walk days: Fine / Noticed it / Sore
 //   - Open Hub, a link to the Shawnee Home Hub ("Trained today" arrives there in v0.2)
 // The loot and the knee answer are saved on the quest itself, so a reload
@@ -29,13 +30,15 @@ async function updateKneeMode(sessions) {
 }
 
 async function renderDone(main, id) {
-  // A win is either a quest/walk (sessions) or an Adventure (adventures).
+  // A win is a quest/walk (sessions), an Adventure (adventures) or a PT gem (treasures).
   let store = 'sessions';
   let win = await db.get('sessions', id);
   if (!win) { store = 'adventures'; win = await db.get('adventures', id); }
+  if (!win) { store = 'treasures'; win = await db.get('treasures', id); }
   if (!win) { location.hash = '#home'; return null; }
 
-  const counts = win.kind === 'adventure' || (win.done && win.done.length > 0);
+  const counts = win.kind === 'adventure' || win.kind === 'gem' || (win.done && win.done.length > 0);
+  const chest = win.kind === 'gem' ? chestStatus(await db.getAll('treasures'), win.treasure) : null;
   const askKnee = counts && (win.kind === 'strength' || win.kind === 'walk');
   let kneeMessage = '';
 
@@ -54,6 +57,7 @@ async function renderDone(main, id) {
 
   function titleText() {
     if (win.kind === 'adventure') return 'Adventure logged!';
+    if (win.kind === 'gem') return 'PT exercises done!';
     if (win.kind === 'walk') return win.partial ? 'Walk ended. It still counts.' : 'Walk complete!';
     if (!win.partial) return 'Quest complete!';
     return counts ? 'Quest ended. It still counts.' : 'Come back anytime.';
@@ -78,6 +82,19 @@ async function renderDone(main, id) {
     </section>`;
   }
 
+  // The new gem, and how full the chest is now.
+  function chestPanel() {
+    if (!chest) return '';
+    const t = TREASURES[win.treasure];
+    return `<section class="panel loot">
+      <p class="muted small">${esc(t.name)}</p>
+      <h3>${chest.open ? 'The chest is open!' : `Gem ${chest.count} of ${chest.goal}`}</h3>
+      ${gemRowHtml(chest)}
+      <p class="speech">${esc(chest.open ? t.lines.open : t.lines.gem)}</p>
+      <a class="btn" href="#treasure">Open the chest screen</a>
+    </section>`;
+  }
+
   function draw() {
     const item = LOOT.find((l) => l.id === win.loot);
     main.innerHTML = `
@@ -87,6 +104,8 @@ async function renderDone(main, id) {
         ${counts ? `<p class="today">+${win.xp || 0} XP</p>` : ''}
         ${levelUp ? `<p class="notice">Level up! You're level ${now.level}.</p>` : ''}
         <p class="center">${counts ? 'The fire is lit for today.' : 'Mara will keep the fire warm.'}</p>
+
+        ${chestPanel()}
 
         ${item ? `<section class="panel loot loot-${item.rarity}">
           <p class="muted small">${item.rarity === 'rare' ? 'Rare find!' : 'From the chest'}</p>

@@ -7,13 +7,46 @@
 //   - the five energy buttons: tapping one STARTS the quest (or the walk)
 //   - the Tiny Quest, always there
 //   - Adventure: log a hike, skate or field day (15 / 30 / 60+ minutes)
+//   - "Did my PT exercises": one gem a day for the yoga mat chest (treasure.js)
+// While you're traveling (🧳 at the top), Home is The Outpost instead (outpost.js).
+
+/** Save an Adventure as a win, give its XP, and show the Done screen. */
+async function logAdventure(minutes) {
+  const xp = TUNING.xpAdventure[minutes];
+  const row = { id: uid(), kind: 'adventure', date: dateKey(), at: Date.now(), minutes, xp };
+  await db.put('adventures', row);
+  await addXp(xp, 'adventure', row.id);
+  closeSheet();
+  location.hash = `#done/${row.id}`;
+}
+
+/**
+ * The "How long were you out?" pop-up. what = the line under the question.
+ * Its buttons live in the pop-up sheet, outside main, so it listens there.
+ * The screen that opens it clears sheet.onclick when you leave.
+ */
+function openAdventureSheet(what) {
+  openSheet(`
+    <h3>How long were you out?</h3>
+    <p class="muted">${esc(what)} It all counts. ${badgeHtml('every-move-counts')}</p>
+    <button class="btn" data-minutes="15">About 15 minutes</button>
+    <button class="btn" data-minutes="30">About 30 minutes</button>
+    <button class="btn" data-minutes="60">An hour or more</button>`);
+  document.getElementById('sheet').onclick = (e) => {
+    const pick = e.target.closest('[data-minutes]');
+    if (pick) logAdventure(Number(pick.dataset.minutes));
+  };
+}
 
 async function renderHome(main) {
-  const [sessions, adventures, inventory] = await Promise.all([
-    db.getAll('sessions'), db.getAll('adventures'), db.getAll('inventory'),
+  const profile = await db.get('profile', 'me');
+  if (isTraveling(profile)) return renderOutpost(main, profile);
+
+  const [sessions, adventures, inventory, treasures] = await Promise.all([
+    db.getAll('sessions'), db.getAll('adventures'), db.getAll('inventory'), db.getAll('treasures'),
   ]);
   const quest = todaysQuest(sessions);
-  const fire = campfire(sessions, adventures, inventory);
+  const fire = campfire(sessions, adventures, inventory, { ptDays: ptDays(treasures), trips: profile.trips });
   const info = levelInfo(await totalXp());
   const today = dateKey();
   const open = sessions.find((s) => !s.finishedAt && s.date === today);
@@ -62,6 +95,7 @@ async function renderHome(main) {
         <p class="center">${badgeHtml('design-tiny')} <span class="muted small">A Tiny Quest is a full win.</span></p>
         ${isWalkDay ? `<button class="btn-quiet" data-action="strength-instead">Do ${esc(TEMPLATES[nextStrength(sessions)].name)} instead</button>` : ''}
         <button class="btn" data-action="adventure">Adventure · hike, skate, field day</button>
+        ${ptButtonHtml(treasures)}
 
         <p class="level-line">Level ${info.level} · ${info.into} / ${info.needed} XP</p>
       </section>
@@ -69,16 +103,6 @@ async function renderHome(main) {
 
     playSprite(main.querySelector('canvas.fire'), CAMPFIRE[fire.level - 1]);
     playSprite(main.querySelector('canvas.mara'), SPRITES.idle);
-  }
-
-  /** Save an Adventure as a win, give its XP, and show the Done screen. */
-  async function logAdventure(minutes) {
-    const xp = TUNING.xpAdventure[minutes];
-    const row = { id: uid(), kind: 'adventure', date: dateKey(), at: Date.now(), minutes, xp };
-    await db.put('adventures', row);
-    await addXp(xp, 'adventure', row.id);
-    closeSheet();
-    location.hash = `#done/${row.id}`;
   }
 
   main.onclick = async (e) => {
@@ -96,23 +120,10 @@ async function renderHome(main) {
     if (action.dataset.action === 'continue') location.hash = open.kind === 'walk' ? '#walk' : '#workout';
     if (action.dataset.action === 'tiny') await startQuest('tiny', 1);
     if (action.dataset.action === 'strength-instead') await startQuest(nextStrength(sessions), 3);
-    if (action.dataset.action === 'adventure') {
-      openSheet(`
-        <h3>How long were you out?</h3>
-        <p class="muted">Hikes, skating, rollerblading, a field day on your feet. It all counts. ${badgeHtml('every-move-counts')}</p>
-        <button class="btn" data-minutes="15">About 15 minutes</button>
-        <button class="btn" data-minutes="30">About 30 minutes</button>
-        <button class="btn" data-minutes="60">An hour or more</button>`);
-    }
-  };
-
-  // The Adventure buttons live in the pop-up sheet, outside main.
-  const sheet = document.getElementById('sheet');
-  sheet.onclick = (e) => {
-    const pick = e.target.closest('[data-minutes]');
-    if (pick) logAdventure(Number(pick.dataset.minutes));
+    if (action.dataset.action === 'adventure') openAdventureSheet('Hikes, skating, rollerblading, a field day on your feet.');
+    if (action.dataset.action === 'pt') await earnGem();
   };
 
   draw();
-  return () => { sheet.onclick = null; };
+  return () => { document.getElementById('sheet').onclick = null; };
 }

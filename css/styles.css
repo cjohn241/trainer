@@ -65,6 +65,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
   font-size: 1.3rem; color: var(--ink); text-decoration: none;
 }
+.top-btn.on { border-color: var(--gold); background: var(--sunk); box-shadow: 0 0 0 2px var(--gold-dim); }
 .brand { font-family: var(--display); font-weight: 700; font-size: 1.35rem; color: var(--ink); text-decoration: none; }
 .brand small { display: block; font-family: var(--body); font-weight: 400; font-size: .8rem; color: var(--muted); }
 
@@ -188,6 +189,13 @@ canvas.mara[data-action] { cursor: pointer; }
   background: var(--sunk); border: 1px solid var(--line); font-weight: 700;
 }
 
+/* ---------- Treasure (treasure.js) ---------- */
+
+/* The chest's gems: little gold diamonds. Hollow ones are still to come. */
+.gems { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; padding: 4px 0; }
+.gems span { width: 16px; height: 16px; transform: rotate(45deg); border: 2px solid var(--gold-dim); border-radius: 2px; }
+.gems span.on { background: var(--gold); border-color: var(--gold); box-shadow: 0 0 6px var(--gold-dim); }
+
 /* ---------- Settings and Someday ---------- */
 
 .file-btn { position: relative; overflow: hidden; cursor: pointer; }
@@ -201,6 +209,7 @@ canvas.mara[data-action] { cursor: pointer; }
   background: var(--sunk); border: 1px solid var(--line); font-weight: 700;
 }
 .chip.on { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+.center-chips { justify-content: center; }
 
 textarea {
   width: 100%; font: inherit; color: var(--ink);

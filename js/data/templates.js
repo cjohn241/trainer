@@ -24,6 +24,37 @@ const TEMPLATES = {
       { pattern: 'hips', exercise: 'lateral-walk', sets: 2, restSec: 45 },
     ],
   },
+  // ----- The Outpost (travel mode). Never the bed: it's too soft to push or bridge on. -----
+  'outpost-room': {
+    name: 'Hotel Room Quest',
+    slots: [
+      { pattern: 'squat', exercise: 'sit-to-stand', sets: 3, restSec: 60 },
+      { pattern: 'push', exercise: 'incline-pushup', sets: 3, restSec: 60 },
+      { pattern: 'pull', exercise: 'band-row', sets: 3, restSec: 45 },
+      { pattern: 'bridge', exercise: 'glute-bridge', sets: 2, restSec: 45 },
+      { pattern: 'hips', exercise: 'lateral-walk', sets: 2, restSec: 45 },
+    ],
+  },
+  'suitcase-quest': {
+    name: 'Suitcase Quest',
+    slots: [
+      { pattern: 'squat', exercise: 'sit-to-stand', sets: 3, restSec: 60 },
+      { pattern: 'push', exercise: 'incline-pushup', sets: 3, restSec: 60 },
+      { pattern: 'pull', exercise: 'backpack-row', sets: 3, restSec: 45 },
+      { pattern: 'bridge', exercise: 'glute-bridge', sets: 2, restSec: 45 },
+      { pattern: 'hips', exercise: 'side-leg-raise', sets: 2, restSec: 45 },
+    ],
+  },
+  'hotel-gym': {
+    name: 'Hotel Gym Quest',
+    slots: [
+      { pattern: 'squat', exercise: 'goblet-squat', sets: 3, restSec: 90 },
+      { pattern: 'hinge', exercise: 'db-rdl', sets: 3, restSec: 90 },
+      { pattern: 'push', exercise: 'incline-pushup', sets: 3, restSec: 75 },
+      { pattern: 'pull', exercise: 'one-arm-row', sets: 3, restSec: 60 },
+      { pattern: 'core', exercise: 'dead-bug', sets: 2, restSec: 45 },
+    ],
+  },
   'tiny': {
     name: 'Tiny Quest',
     slots: [

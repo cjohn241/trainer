@@ -61,12 +61,17 @@ async function renderWorkout(main) {
       </div>`;
   }
 
+  // Home, hotel room or hotel gym: each has its own weights and push-up ladder (progress.js).
+  const place = session.place || 'home';
+  const ladder = ladderFor(place);
+
   function loadRow(ex) {
-    if (WEIGHT_LOADS.includes(ex.load)) {
-      const d = describeLoad(ex.load, pick.load);
+    const kind = loadKind(ex, place);
+    if (WEIGHT_LOADS.includes(kind)) {
+      const d = describeLoad(kind, pick.load);
       return stepper('load', d.big, d.plates);
     }
-    if (ex.load === 'ladder') return stepper('load', EQUIPMENT.pushupLadder[pick.load], 'Hands on this · − easier, + harder');
+    if (kind === 'ladder') return stepper('load', ladder[pick.load], 'Hands on this · − easier, + harder');
     if (ex.load === 'band') return '<p class="center muted">Grab your band</p>';
     return '';
   }
@@ -79,7 +84,7 @@ async function renderWorkout(main) {
 
     // Fill in the numbers: what you did last set, or what progress.js saved for next time.
     if (!pick || pick.step !== i || pick.exercise !== exId) {
-      const state = await getExerciseState(exId);
+      const state = await getExerciseState(exId, place);
       const last = done.filter((d) => d.exercise === exId).pop();
       pick = { step: i, exercise: exId, load: last ? last.load : state.load, reps: last && last.reps ? last.reps : state.reps };
       showSecondCue = false;
@@ -119,6 +124,7 @@ async function renderWorkout(main) {
 
         <button class="btn-gold big" data-action="set-done">${step.seconds ? 'Done' : 'Set done'}</button>
         <button class="btn-quiet" data-action="easier">Easier version</button>
+        ${place !== 'home' && ex.notHere ? '<button class="btn-quiet" data-action="not-here">Not here (no gear for this one)</button>' : ''}
         <button class="btn-quiet" data-action="end">End the quest here. It still counts.</button>
       </section>
     `;
@@ -226,7 +232,7 @@ async function renderWorkout(main) {
       const exId = exerciseAt(i);
       session.efforts[i] = effortButton.dataset.effort;
       await save();
-      const message = await finishExercise(exId, setsAt(i).filter((d) => d.exercise === exId), session.efforts[i]);
+      const message = await finishExercise(exId, setsAt(i).filter((d) => d.exercise === exId), session.efforts[i], place);
       if (message) { notice = message; buzz([60, 40, 60, 40, 120]); }
       draw();
       return;
@@ -247,8 +253,8 @@ async function renderWorkout(main) {
     if (action === 'reps-up') pick.reps += 1;
     if (action === 'load-down' || action === 'load-up') {
       const dir = action === 'load-up' ? 1 : -1;
-      if (ex.load === 'ladder') pick.load = Math.min(EQUIPMENT.pushupLadder.length - 1, Math.max(0, pick.load + dir));
-      else pick.load = stepLoad(ex.load, pick.load, dir);
+      if (ex.load === 'ladder') pick.load = Math.min(ladder.length - 1, Math.max(0, pick.load + dir));
+      else pick.load = stepLoad(loadKind(ex, place), pick.load, dir);
     }
 
     if (action === 'easier') {
@@ -262,6 +268,13 @@ async function renderWorkout(main) {
       } else {
         toast('This is already the gentlest version, and it counts.');
       }
+    }
+
+    // Away from home: the hotel doesn't have what this move needs, so swap in one that works anywhere.
+    if (action === 'not-here' && ex.notHere) {
+      session.swaps[pos.i] = ex.notHere;
+      await save();
+      toast(`Swapped to ${EXERCISES[ex.notHere].name}. Same win.`);
     }
 
     if (action === 'end') {

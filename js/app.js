@@ -1,8 +1,10 @@
 // app.js — starts the app and shows the screen named in the address:
 //   #home       the training hall: campfire, energy buttons, Tiny Quest, Adventure
+//               (while you're traveling, The Outpost instead: see outpost.js)
 //   #workout    the quest you're doing right now, one exercise at a time
 //   #walk       the walk pad, one part at a time
 //   #done/<id>  after a win: loot, knee check, Open Hub
+//   #treasure   the yoga mat chest: your gems and Match Hinge
 //   #settings   backup, Someday, version, equipment
 
 const main = document.getElementById('screen');
@@ -45,18 +47,23 @@ async function show() {
     else if (name === 'walk') leaveScreen = await renderWalk(main);
     else if (name === 'done') leaveScreen = await renderDone(main, id);
     else if (name === 'settings') leaveScreen = await renderSettings(main);
+    else if (name === 'treasure') leaveScreen = await renderTreasure(main);
     else leaveScreen = await renderHome(main);
   } catch (err) {
     console.error(err);
     main.innerHTML = `<section class="panel"><h2>Something went wrong</h2><p class="muted">${esc(err.message)}</p></section>`;
   }
   window.scrollTo(0, 0);
+  updateSuitcase(await db.get('profile', 'me'));
 }
 
 window.addEventListener('hashchange', show);
 
 // The 💡 at the top opens the Someday catcher on any screen.
 document.getElementById('lightbulb').addEventListener('click', openSomeday);
+
+// The 🧳 at the top turns The Outpost (travel mode) on or off in one tap.
+document.getElementById('suitcase').addEventListener('click', toggleTravel);
 
 // Ask Chrome not to clear our data when the disk gets tight.
 // Installed apps usually get this automatically.

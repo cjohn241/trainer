@@ -53,6 +53,18 @@ const EVIDENCE = {
     year: 2019, type: 'meta-analysis', label: 'Moderate', checked: false,
     url: 'https://pubmed.ncbi.nlm.nih.gov/?term=elastic+bands+resistance+training+strength+meta-analysis+2019',
   },
+  'real-incentives': {
+    claim: 'Real-world rewards help people stay active, at least while the reward is on offer.',
+    source: 'Mitchell et al. (systematic review and meta-analysis of financial incentives for physical activity)',
+    year: 2020, type: 'meta-analysis', label: 'Moderate', checked: false,
+    url: 'https://pubmed.ncbi.nlm.nih.gov/?term=Mitchell+financial+incentives+physical+activity+meta-analysis+2020',
+  },
+  'strength-breaks': {
+    claim: 'A few weeks of lighter training keeps most of your strength. Short trips do not undo your work.',
+    source: 'Bosquet et al. (detraining meta-analysis); Spiering et al. (maintaining strength and muscle)',
+    year: '2013; 2021', type: 'meta-analysis and review', label: 'Moderate', checked: false,
+    url: 'https://pubmed.ncbi.nlm.nih.gov/?term=Spiering+maintaining+physical+performance+minimal+dose+2021',
+  },
   'design-energy': {
     claim: 'Your energy tap sets how much today\'s quest asks of you.',
     label: 'Design choice',

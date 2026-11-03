@@ -12,7 +12,7 @@
 // start with 'brawnforge-'.
 
 const CACHE_PREFIX = 'brawnforge-';
-const CACHE_NAME = 'brawnforge-v5';
+const CACHE_NAME = 'brawnforge-v6';
 const FONT_CACHE = 'brawnforge-fonts';
 
 const APP_FILES = [
@@ -32,6 +32,8 @@ const APP_FILES = [
   './js/data/walks.js',
   './js/data/links.js',
   './js/data/sprites.js',
+  './js/data/treasures.js',
+  './js/data/outpost.js',
   './js/sprite.js',
   './js/plates.js',
   './js/xp.js',
@@ -40,7 +42,9 @@ const APP_FILES = [
   './js/today.js',
   './js/backup.js',
   './js/someday.js',
+  './js/treasure.js',
   './js/home.js',
+  './js/outpost.js',
   './js/workout.js',
   './js/walk.js',
   './js/done.js',

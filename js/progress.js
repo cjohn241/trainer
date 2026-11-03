@@ -7,22 +7,45 @@
 //      the bottom of the range.
 //   3. Hard means stay where you are. Nothing ever moves you down by itself.
 
-/** The row for one exercise at one place (home for now; hotels come in v0.2). */
+// Places you train. Each one remembers its own weights and push-up rung,
+// so a hotel never changes your numbers at home.
+//   'home'      your plates and furniture
+//   'room'      a hotel room (with or without bands)
+//   'gym'       a hotel gym: dumbbells in pounds
+
+/** The row for one exercise at one place. */
 function stateId(exerciseId, place = 'home') {
   return `${exerciseId}|${place}`;
 }
 
-const WEIGHT_LOADS = ['db-one', 'db-pair', 'kb'];
+const WEIGHT_LOADS = ['db-one', 'db-pair', 'kb', 'lb', 'lb-pair'];
 
-/** What to start with next time: { load, reps }. load is kg, a ladder rung, or null. */
-async function getExerciseState(exerciseId) {
-  const saved = await db.get('exerciseState', stateId(exerciseId));
+/** How a move is loaded at a place. At the hotel gym, dumbbell and kettlebell moves use the rack, in pounds. */
+function loadKind(ex, place = 'home') {
+  if (place !== 'gym') return ex.load;
+  if (ex.load === 'db-pair') return 'lb-pair';
+  if (ex.load === 'db-one' || ex.load === 'kb') return 'lb';
+  return ex.load;
+}
+
+/** The push-up ladder for a place, easiest first. */
+function ladderFor(place = 'home') {
+  if (place === 'room') return EQUIPMENT.roomPushupLadder;
+  if (place === 'gym') return EQUIPMENT.gymPushupLadder;
+  return EQUIPMENT.pushupLadder;
+}
+
+/** What to start with next time: { load, reps }. load is kg (lb at the gym), a ladder rung, or null. */
+async function getExerciseState(exerciseId, place = 'home') {
+  const saved = await db.get('exerciseState', stateId(exerciseId, place));
   if (saved) return saved;
   const ex = EXERCISES[exerciseId];
+  const kind = loadKind(ex, place);
   let load = null;
-  if (WEIGHT_LOADS.includes(ex.load)) load = nearestLoad(ex.load, ex.startKg);
-  if (ex.load === 'ladder') load = ex.startRung;
-  return { id: stateId(exerciseId), exerciseId, place: 'home', load, reps: ex.reps[0] };
+  if (kind === 'lb' || kind === 'lb-pair') load = nearestLoad(kind, ex.startKg * 2.2046);
+  else if (WEIGHT_LOADS.includes(kind)) load = nearestLoad(kind, ex.startKg);
+  if (kind === 'ladder') load = Math.min(ex.startRung, ladderFor(place).length - 1);
+  return { id: stateId(exerciseId, place), exerciseId, place, load, reps: ex.reps[0] };
 }
 
 /**
@@ -30,9 +53,11 @@ async function getExerciseState(exerciseId) {
  * effort = 'easy' | 'good' | 'hard'. Returns a message to celebrate a
  * step up, or null.
  */
-async function finishExercise(exerciseId, sets, effort) {
+async function finishExercise(exerciseId, sets, effort, place = 'home') {
   const ex = EXERCISES[exerciseId];
-  const state = await getExerciseState(exerciseId);
+  const kind = loadKind(ex, place);
+  const ladder = ladderFor(place);
+  const state = await getExerciseState(exerciseId, place);
   const last = sets[sets.length - 1];
   if (!last) return null;
 
@@ -43,17 +68,17 @@ async function finishExercise(exerciseId, sets, effort) {
   let message = null;
   const allAtTop = sets.every((s) => s.reps >= ex.reps[1]);
   if (allAtTop && effort !== 'hard') {
-    if (WEIGHT_LOADS.includes(ex.load)) {
-      const next = stepLoad(ex.load, last.load, +1);
+    if (WEIGHT_LOADS.includes(kind)) {
+      const next = stepLoad(kind, last.load, +1);
       if (next > last.load) {
         state.load = next;
         state.reps = ex.reps[0];
-        message = `Next time: ${describeLoad(ex.load, next).big}. You earned it.`;
+        message = `Next time: ${describeLoad(kind, next).big}. You earned it.`;
       }
-    } else if (ex.load === 'ladder' && last.load < EQUIPMENT.pushupLadder.length - 1) {
+    } else if (kind === 'ladder' && last.load < ladder.length - 1) {
       state.load = last.load + 1;
       state.reps = ex.reps[0];
-      message = `Next time: hands on the ${EQUIPMENT.pushupLadder[state.load].toLowerCase()}. You earned it.`;
+      message = `Next time: hands on the ${ladder[state.load].toLowerCase()}. You earned it.`;
     }
   }
 

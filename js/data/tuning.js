@@ -6,6 +6,7 @@ const TUNING = {
   xpTinyQuest: 50,     // a whole Tiny Quest, sets included
   xpWalk: 60,          // a walk pad session (Session 2)
   xpAdventure: { 15: 20, 30: 40, 60: 60 }, // minutes -> XP (Session 2)
+  xpPtExercises: 20,   // "Did my PT exercises": one gem, once a day (v0.2)
 
   xpPerLevel: 100,     // level 1 -> 2 needs 100 XP, 2 -> 3 needs 200, and so on
 
@@ -24,4 +25,8 @@ const TUNING = {
   // this many Fine in a row switches back.
   kneeSoreToEase: 2,
   kneeFineToReturn: 2,
+
+  // The Outpost (travel mode): a travel week asks for this many strength
+  // days, on any days you like, plus any movement at all.
+  travelStrengthDays: 2,
 };

@@ -42,6 +42,8 @@ Same steps as The Bard's Tongue. A phone app needs an `https://` address, and Gi
 - **Home:** tap your energy (1–5) and today's quest starts. Tiny Quest is always there, and always a full win.
 - **Walk pad days (Mon, Wed, Fri bonus):** one part at a time with a draining bar. The phone buzzes when the pace changes, and the screen stays on. "End early" still counts.
 - **Adventure:** hikes, skating, field days. Pick 15, 30 or 60+ minutes.
+- **Did my PT exercises:** one gem a day for the Yoga Mat Chest (15 gems). It lights the campfire too. On the chest screen, **Match Hinge** sets the count to match the Hinge Health app.
+- **🧳 (top):** The Outpost, for trips. Pick hotel room (with or without bands) or hotel gym, then your energy. Any 2 strength days a week, plus any movement. Travel days never dim the fire. Hotel weights (in pounds at the gym) are kept apart from home. Tap 🧳 again when you're home.
 - **Done screen:** loot, Mara's power pose (tap her to skip it), the knee check, and **Open Hub** (a link to the Home Hub; its "Trained today" check-off arrives in v0.2).
 - **💡 (top right):** catch an idea for later. Broken, Wish or Again.
 - **⚙ Settings:** backup, your Someday list (Copy all), version and freeze days, equipment.

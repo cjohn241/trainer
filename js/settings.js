@@ -1,6 +1,7 @@
 // settings.js — the Settings screen (#settings).
 //
 //   - Backup: save your data to a file, or load one back in
+//   - Treasure: a way into the yoga mat chest (and Match Hinge)
 //   - Someday: your idea list, and Copy all
 //   - Version: which release this is, and whether the update window is open
 //   - Equipment: what the app thinks you own (change it in js/data/equipment.js)
@@ -15,8 +16,8 @@ function freezeStatus() {
 }
 
 async function renderSettings(main) {
-  const [someday, lastBackup, profile] = await Promise.all([
-    db.getAll('someday'), db.get('meta', 'lastBackup'), db.get('profile', 'me'),
+  const [someday, lastBackup, profile, treasures] = await Promise.all([
+    db.getAll('someday'), db.get('meta', 'lastBackup'), db.get('profile', 'me'), db.getAll('treasures'),
   ]);
   const freeze = freezeStatus();
   const kgList = (kind) => loadOptions(kind).map((o) => kgText(o.kg)).join(' · ');
@@ -40,6 +41,12 @@ async function renderSettings(main) {
         <button class="${canShareFiles() ? 'btn' : 'btn-gold'}" data-action="save">Save backup file to Downloads</button>
         <label class="btn file-btn">Load backup file<input type="file" id="restore-file" accept=".json,.txt,application/json,text/plain"></label>
         <p class="muted small">Loading adds the file's data. Nothing here is erased.</p>
+      </section>
+
+      <section class="panel stack">
+        <h3>Treasure</h3>
+        ${gemRowHtml(chestStatus(treasures))}
+        <a class="btn" href="#treasure">${esc(TREASURES[CURRENT_TREASURE].name)} · Match Hinge</a>
       </section>
 
       <section class="panel stack">
@@ -70,6 +77,9 @@ async function renderSettings(main) {
         <p class="small"><b>One dumbbell:</b> ${esc(kgRange('db-one'))}</p>
         <p class="small"><b>Kettlebell:</b> ${esc(kgRange('kb'))}</p>
         <p class="small"><b>Push-up ladder:</b> ${esc(EQUIPMENT.pushupLadder.join(' → '))}</p>
+        <p class="small"><b>Hotel room ladder:</b> ${esc(EQUIPMENT.roomPushupLadder.join(' → '))}</p>
+        <p class="small"><b>Hotel gym ladder:</b> ${esc(EQUIPMENT.gymPushupLadder.join(' → '))}</p>
+        <p class="small"><b>Hotel gym dumbbells:</b> ${esc(EQUIPMENT.hotelDumbbellsLb.join(' · '))} lb</p>
         <p class="muted small">To change these, edit js/data/equipment.js.</p>
       </section>
 

@@ -13,13 +13,14 @@
 //   questProgress  key: id    (spare for now: walk pad weeks are worked out from your walks)
 //   someday        key: id    your idea list: Broken / Wish / Again
 //   meta           key: key   app bookkeeping, like the last backup date
+//   treasures      key: id    Real-World Treasure: one gem per PT day, and your Match Hinge count (v0.2)
 //
 // The database is named 'brawnforge', so it never mixes with The Bard's
 // Tongue even though both live at the same GitHub Pages address.
 
 const db = (() => {
   const DB_NAME = 'brawnforge';
-  const DB_VERSION = 1; // bump this only if the table list below changes
+  const DB_VERSION = 2; // bump this only if the table list below changes (2: added treasures)
 
   const STORES = {
     profile: 'id',
@@ -32,6 +33,7 @@ const db = (() => {
     questProgress: 'id',
     someday: 'id',
     meta: 'key',
+    treasures: 'id',
   };
 
   let dbPromise = null;
