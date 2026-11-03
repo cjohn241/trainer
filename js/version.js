@@ -8,8 +8,8 @@
 
 const APP = {
   name: 'The Brawnforge',
-  version: '0.1.0',     // sw.js: brawnforge-v4
-  releasedOn: null,     // e.g. '2026-11-08' once it's on your phone
+  version: '0.1.0',     // sw.js: brawnforge-v5
+  releasedOn: '2026-11-02', // the day it went on your phone. Freeze ends 2026-11-16.
   freezeDays: 14,
   whatsNew: '',
 };
