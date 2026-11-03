@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>The Brawnforge</title>
+  <meta name="description" content="Mara the Unbent's training hall. Everything stays on this device.">
+  <meta name="theme-color" content="#15121d">
+  <!-- Lets Android install the app, with Mara as the icon (see manifest.webmanifest) -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <!-- Same fonts as the Shawnee Home Hub. Offline, the page falls back to system fonts. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Cinzel:wght@600;700&display=swap">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="app-top">
+    <a href="#home" class="brand">The Brawnforge
+      <small>Mara the Unbent's training hall</small>
+    </a>
+    <button class="top-btn" id="lightbulb" aria-label="Catch an idea for Someday">💡</button>
+    <a class="top-btn" href="#settings" aria-label="Settings">⚙</a>
+  </header>
+
+  <!-- Each screen draws itself in here -->
+  <main id="screen" tabindex="-1"></main>
+
+  <!-- Which version is running (set in app.js) -->
+  <footer class="app-version" id="app-version"></footer>
+
+  <!-- The little message at the bottom -->
+  <div id="toast" role="status" aria-live="polite"></div>
+
+  <!-- The pop-up panel for evidence sources (see ui.js) -->
+  <div id="sheet" class="sheet" hidden></div>
+
+  <!-- Plain scripts (not modules) so the app works by double-clicking index.html.
+       Order matters: helpers and data first, screens next, app.js last. -->
+  <script src="js/version.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+
+  <script src="js/data/tuning.js"></script>
+  <script src="js/data/equipment.js"></script>
+  <script src="js/data/evidence.js"></script>
+  <script src="js/data/exercises.js"></script>
+  <script src="js/data/templates.js"></script>
+  <script src="js/data/loot.js"></script>
+  <script src="js/data/walks.js"></script>
+  <script src="js/data/links.js"></script>
+  <script src="js/data/sprites.js"></script>
+
+  <script src="js/sprite.js"></script>
+  <script src="js/plates.js"></script>
+  <script src="js/xp.js"></script>
+  <script src="js/progress.js"></script>
+  <script src="js/campfire.js"></script>
+  <script src="js/today.js"></script>
+  <script src="js/backup.js"></script>
+  <script src="js/someday.js"></script>
+
+  <script src="js/home.js"></script>
+  <script src="js/workout.js"></script>
+  <script src="js/walk.js"></script>
+  <script src="js/done.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

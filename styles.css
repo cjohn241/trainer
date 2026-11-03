@@ -1,0 +1,255 @@
+/* =========================================================
+   The Brawnforge — styles
+   The Shawnee Home Hub's quest look: a torch-lit dungeon in
+   dark plum, Cinzel headings, gold for the main action.
+   All colors and fonts live in the variables below.
+   Built for a phone first: one column, big buttons.
+   ========================================================= */
+
+:root {
+  color-scheme: dark;
+
+  --bg: #15121d;
+  --surface: #1e1a29;
+  --sunk: #292338;
+  --ink: #ede6d3;
+  --muted: #aaa2bb;
+  --line: #3a3350;
+
+  --gold: #e6c36e;      /* main action, work bars */
+  --gold-dim: #8a7444;
+  --ember: #e8823a;     /* the campfire */
+  --moss: #8fb070;      /* Mara's green, rest bars */
+  --moss-soft: #2a3324;
+
+  --display: "Cinzel", Georgia, serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+
+  --radius: 14px;
+  --tap: 56px;          /* minimum height for anything you tap */
+}
+
+/* ---------- Base ---------- */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 18px/1.45 var(--body);
+  padding: 12px 16px 40px;
+}
+
+h1, h2, h3 { margin: 0; font-family: var(--display); font-weight: 600; letter-spacing: .02em; line-height: 1.2; }
+h2 { font-size: 24px; text-align: center; }
+h3 { font-size: 19px; margin: 10px 0 6px; }
+p { margin: 0; }
+a { color: var(--gold); }
+
+button { font: inherit; color: inherit; cursor: pointer; }
+
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+.muted { color: var(--muted); }
+.small { font-size: .85rem; }
+.center { text-align: center; }
+
+/* ---------- Header ---------- */
+
+.app-top { max-width: 520px; margin: 0 auto 8px; display: flex; align-items: center; gap: 6px; }
+.app-top .brand { margin-right: auto; }
+.top-btn {
+  width: 48px; height: 48px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  font-size: 1.3rem; color: var(--ink); text-decoration: none;
+}
+.brand { font-family: var(--display); font-weight: 700; font-size: 1.35rem; color: var(--ink); text-decoration: none; }
+.brand small { display: block; font-family: var(--body); font-weight: 400; font-size: .8rem; color: var(--muted); }
+
+main { max-width: 520px; margin: 0 auto; outline: none; }
+
+.app-version { max-width: 520px; margin: 28px auto 0; text-align: center; font-size: .75rem; color: var(--muted); }
+
+/* ---------- Layout pieces ---------- */
+
+.stack { display: flex; flex-direction: column; gap: 14px; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+/* ---------- Buttons ---------- */
+
+.btn, .btn-gold, .btn-quiet {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: var(--tap);
+  border-radius: var(--radius);
+  font-weight: 700; text-align: center; text-decoration: none;
+}
+.btn { background: var(--sunk); border: 1px solid var(--line); }
+.btn-gold { background: var(--gold); border: 1px solid var(--gold); color: var(--bg); font-size: 1.15rem; }
+.btn-gold.big { min-height: 76px; font-size: 1.4rem; font-family: var(--display); }
+.btn-quiet { background: none; border: none; color: var(--muted); font-weight: 400; min-height: 48px; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- Pixel art (see sprite.js) ---------- */
+
+canvas.mara { width: 192px; height: 192px; image-rendering: pixelated; display: block; margin: 0 auto; }
+canvas.mara.small { width: 128px; height: 128px; }
+canvas.fire { width: 64px; height: 64px; image-rendering: pixelated; display: block; flex: none; }
+
+/* ---------- Home ---------- */
+
+.hearth { display: flex; align-items: center; gap: 12px; }
+.hearth .fire-name { font-family: var(--display); font-size: 1.1rem; }
+
+.speech {
+  position: relative;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  text-align: center;
+  font-style: italic;
+}
+
+.today { text-align: center; font-family: var(--display); font-size: 1.15rem; color: var(--gold); }
+
+.energy-label { text-align: center; font-weight: 700; }
+.energy-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.energy-row button {
+  min-height: 84px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 4px 2px;
+}
+.energy-row button b { font-family: var(--display); font-size: 1.8rem; color: var(--gold); line-height: 1; }
+.energy-row button small { font-size: .72rem; color: var(--muted); margin-top: 4px; }
+.energy-row button:active { background: var(--gold); }
+.energy-row button:active b, .energy-row button:active small { color: var(--bg); }
+
+.level-line { text-align: center; color: var(--muted); font-size: .9rem; }
+
+/* ---------- Workout ---------- */
+
+.step-count { text-align: center; color: var(--muted); font-size: .9rem; }
+.set-count { text-align: center; font-weight: 700; font-size: 1.1rem; }
+.cue { text-align: center; font-size: 1.1rem; }
+.badges { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+.pt-tag { text-align: center; color: var(--gold); font-size: .9rem; }
+.notice { text-align: center; color: var(--gold); font-weight: 700; }
+
+/* A row with a big − and + around a value: weight, push-up height, reps */
+.stepper { display: grid; grid-template-columns: 64px 1fr 64px; gap: 8px; align-items: center; }
+.stepper button {
+  height: 64px; border-radius: var(--radius);
+  background: var(--sunk); border: 1px solid var(--line);
+  font-size: 2rem; font-weight: 700; line-height: 1;
+}
+.stepper .value { text-align: center; font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+.stepper .value small { display: block; font-size: .8rem; font-weight: 400; color: var(--muted); }
+
+/* Draining bars: a full bar that empties as time passes. No numbers. */
+.drain { height: 32px; background: var(--sunk); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.drain span { display: block; height: 100%; width: 100%; background: var(--gold); animation-name: drain; animation-timing-function: linear; animation-fill-mode: forwards; }
+.drain.rest span { background: var(--moss); }
+.drain.thin { height: 10px; }
+.drain.thin span { background: var(--gold-dim); }
+@keyframes drain { from { width: 100%; } to { width: 0%; } }
+
+/* Easy / Good / Hard */
+.effort { display: flex; flex-direction: column; gap: 10px; }
+.effort button {
+  min-height: 72px; border-radius: var(--radius);
+  background: var(--surface); border: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.effort button b { font-family: var(--display); font-size: 1.3rem; color: var(--gold); }
+.effort button small { color: var(--muted); }
+
+/* ---------- Done screen ---------- */
+
+canvas.mara[data-action] { cursor: pointer; }
+
+.loot { text-align: center; display: flex; flex-direction: column; gap: 6px; }
+.loot h3 { margin: 0; color: var(--gold); }
+.loot-rare { border-color: var(--gold); box-shadow: 0 0 0 2px var(--gold-dim); }
+
+/* Fine / Noticed it / Sore: three calm, equal buttons. No red. */
+.knee { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.knee button {
+  min-height: var(--tap); border-radius: var(--radius);
+  background: var(--sunk); border: 1px solid var(--line); font-weight: 700;
+}
+
+/* ---------- Settings and Someday ---------- */
+
+.file-btn { position: relative; overflow: hidden; cursor: pointer; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+.ideas { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip {
+  min-height: 44px; padding: 0 16px; border-radius: 999px;
+  background: var(--sunk); border: 1px solid var(--line); font-weight: 700;
+}
+.chip.on { background: var(--gold); border-color: var(--gold); color: var(--bg); }
+
+textarea {
+  width: 100%; font: inherit; color: var(--ink);
+  background: var(--sunk); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 10px 12px; resize: vertical;
+}
+
+.sheet-card .btn-gold { margin-top: 4px; }
+
+/* ---------- Evidence badges and pop-up ---------- */
+
+.badge {
+  border-radius: 999px; padding: 3px 12px; font-size: .78rem; font-weight: 700;
+  min-height: 32px; border: 1px solid var(--gold); background: none; color: var(--gold);
+}
+.badge-strong { background: var(--gold); color: var(--bg); }
+.badge-emerging { border-color: var(--muted); color: var(--muted); }
+.badge-design { border-style: dashed; border-color: var(--muted); color: var(--muted); }
+
+.sheet { position: fixed; inset: 0; background: rgba(8, 6, 12, .7); display: flex; align-items: flex-end; justify-content: center; padding: 16px; z-index: 20; }
+.sheet[hidden] { display: none; }
+.sheet-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.sheet-card .btn { margin-top: 8px; }
+
+/* ---------- Messages ---------- */
+
+#toast {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(40px);
+  max-width: calc(100% - 32px); width: max-content;
+  background: var(--sunk); border: 1px solid var(--gold); border-radius: var(--radius);
+  padding: 10px 16px; opacity: 0; pointer-events: none;
+  transition: opacity .2s, transform .2s; z-index: 30;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.xp-pop {
+  position: fixed; left: 50%; top: 40%; transform: translateX(-50%);
+  font-family: var(--display); font-size: 2.2rem; font-weight: 700; color: var(--gold);
+  text-shadow: 0 2px 0 #000; pointer-events: none; z-index: 40;
+  animation: xp-rise 1.1s ease-out forwards;
+}
+@keyframes xp-rise {
+  from { opacity: 0; transform: translate(-50%, 20px) scale(.8); }
+  20% { opacity: 1; transform: translate(-50%, 0) scale(1.1); }
+  to { opacity: 0; transform: translate(-50%, -60px) scale(1); }
+}
+
+/* If your phone asks for less motion, keep things still. */
+@media (prefers-reduced-motion: reduce) {
+  .xp-pop { animation-duration: .01s; }
+  #toast { transition: none; }
+}
