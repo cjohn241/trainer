@@ -38,7 +38,7 @@ async function renderSettings(main) {
         <p class="small">Last backup: <b>${lastBackup ? esc(new Date(lastBackup.at).toLocaleDateString()) : 'never'}</b></p>
         ${canShareFiles() ? '<button class="btn-gold" data-action="share">Save backup to Drive or Quick Share</button>' : ''}
         <button class="${canShareFiles() ? 'btn' : 'btn-gold'}" data-action="save">Save backup file to Downloads</button>
-        <label class="btn file-btn">Load backup file<input type="file" id="restore-file" accept=".json,application/json"></label>
+        <label class="btn file-btn">Load backup file<input type="file" id="restore-file" accept=".json,.txt,application/json,text/plain"></label>
         <p class="muted small">Loading adds the file's data. Nothing here is erased.</p>
       </section>
 
@@ -79,6 +79,9 @@ async function renderSettings(main) {
 
   const status = (text) => toast(text);
 
+  // Pack the share file now, so tapping Share can open the Share sheet right away.
+  const shareFile = canShareFiles() ? await backupFile('txt') : null;
+
   main.onclick = async (e) => {
     const button = e.target.closest('[data-action]');
     if (!button) return;
@@ -87,8 +90,17 @@ async function renderSettings(main) {
     if (action === 'add-idea') openSomeday();
     if (action === 'save') { status(`Saved ${await saveBackup()} to Downloads.`); show(); }
     if (action === 'share') {
-      try { await shareBackup(); status('Backup shared.'); show(); }
-      catch (err) { if (err.name !== 'AbortError') status("Couldn't share. Try Save backup file instead."); }
+      try {
+        await shareBackup(shareFile);
+        status('Backup shared.');
+        show();
+      } catch (err) {
+        if (err.name === 'AbortError') return; // you closed the Share sheet: nothing to do
+        // Sharing didn't work here, so save to Downloads instead. You still get your backup.
+        console.warn('Share failed', err);
+        status(`Sharing didn't work (${err.name}), so it went to Downloads: ${await saveBackup()}`);
+        show();
+      }
     }
     if (action === 'copy') {
       try {

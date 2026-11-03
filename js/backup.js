@@ -34,32 +34,46 @@ async function restoreBackup(data) {
   return count;
 }
 
-/** The file to save, named with today's date. */
-async function backupFile() {
+/**
+ * The backup as a file, named with today's date. ext 'json' for Downloads;
+ * 'txt' for sharing, because Android's Share sheet won't take .json files.
+ * Either one loads back in (the inside is the same).
+ */
+async function backupFile(ext = 'json') {
   const json = JSON.stringify(await makeBackup());
-  await db.put('meta', { key: 'lastBackup', at: Date.now() });
-  return new File([json], `brawnforge-backup-${dateKey()}.json`, { type: 'application/json' });
+  const type = ext === 'txt' ? 'text/plain' : 'application/json';
+  return new File([json], `brawnforge-backup-${dateKey()}.${ext}`, { type });
 }
 
-/** Save the file to Downloads. */
-async function saveBackup() {
-  const file = await backupFile();
+/** Remember when you last saved a backup (Settings shows it). */
+async function markBackedUp() {
+  await db.put('meta', { key: 'lastBackup', at: Date.now() });
+}
+
+/** Save the file to Downloads. Returns the file name. */
+async function saveBackup(file) {
+  file = file || await backupFile('json');
   const url = URL.createObjectURL(file);
   const link = document.createElement('a');
   link.href = url;
   link.download = file.name;
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 10000);
+  await markBackedUp();
   return file.name;
 }
 
-/** On the phone: send the file straight to Google Drive, Quick Share, email... */
-async function shareBackup() {
-  const file = await backupFile();
+/**
+ * On the phone: send a ready-made file straight to Google Drive, Quick Share,
+ * email... Chrome only allows sharing right after a tap, so the file must be
+ * packed BEFORE the tap (settings.js does that) and handed in here.
+ */
+async function shareBackup(file) {
   await navigator.share({ files: [file], title: 'The Brawnforge backup' });
+  await markBackedUp();
 }
 
 /** Can this browser share files? (Phones yes, most PCs no.) */
 function canShareFiles() {
-  return Boolean(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.json', { type: 'application/json' })] }));
+  return Boolean(navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.txt', { type: 'text/plain' })] }));
 }
