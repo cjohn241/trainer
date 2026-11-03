@@ -12,7 +12,7 @@
 // start with 'brawnforge-'.
 
 const CACHE_PREFIX = 'brawnforge-';
-const CACHE_NAME = 'brawnforge-v6';
+const CACHE_NAME = 'brawnforge-v7';
 const FONT_CACHE = 'brawnforge-fonts';
 
 const APP_FILES = [

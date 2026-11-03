@@ -8,8 +8,8 @@
 
 const APP = {
   name: 'The Brawnforge',
-  version: '0.2.0',     // sw.js: brawnforge-v6
-  releasedOn: '2026-11-02', // the day it went on your phone. v0.2 sets this when it ships.
+  version: '0.2.1',     // sw.js: brawnforge-v7 (0.2.1 = v0.2 with its release date set)
+  releasedOn: '2026-11-03', // the day it went on your phone. Freeze ends 2026-11-17.
   freezeDays: 14,
-  whatsNew: 'The Outpost: tap 🧳 at the top when you travel. And the Yoga Mat Chest: tap "Did my PT exercises" for a gem a day.',
+  whatsNew: 'v0.2 is released. The 2-week freeze starts today: ideas go in 💡 Someday.',
 };
