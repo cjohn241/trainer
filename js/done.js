@@ -4,7 +4,7 @@
 //   - XP, and a level-up if you got one
 //   - the loot chest: one roll per win, saved to your inventory
 //   - the knee check, after strength and walk days: Fine / Noticed it / Sore
-//   - Open Hub, to tick off "Trained today" in the Shawnee Home Hub
+//   - Open Hub, a link to the Shawnee Home Hub ("Trained today" arrives there in v0.2)
 // The loot and the knee answer are saved on the quest itself, so a reload
 // shows the same chest and never rolls twice.
 
@@ -97,7 +97,7 @@ async function renderDone(main, id) {
         ${kneePanel()}
 
         <p class="level-line">Level ${now.level} · ${now.into} / ${now.needed} XP</p>
-        <a class="btn" href="${esc(LINKS.hub)}" target="_blank" rel="noopener">Open Hub · tick off Trained today</a>
+        <a class="btn" href="${esc(LINKS.hub)}" target="_blank" rel="noopener">Open Hub</a>
         <button class="btn-gold big" data-action="home">Back to the hall</button>
       </section>
     `;

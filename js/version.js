@@ -8,7 +8,7 @@
 
 const APP = {
   name: 'The Brawnforge',
-  version: '0.1.0',     // sw.js: brawnforge-v1
+  version: '0.1.0',     // sw.js: brawnforge-v2
   releasedOn: null,     // e.g. '2026-11-08' once it's on your phone
   freezeDays: 14,
   whatsNew: '',
