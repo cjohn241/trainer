@@ -12,7 +12,7 @@
 // start with 'brawnforge-'.
 
 const CACHE_PREFIX = 'brawnforge-';
-const CACHE_NAME = 'brawnforge-v2';
+const CACHE_NAME = 'brawnforge-v3';
 const FONT_CACHE = 'brawnforge-fonts';
 
 const APP_FILES = [
@@ -51,11 +51,12 @@ const APP_FILES = [
   './icons/maskable-512.png',
 ];
 
-// Install: download and save every app file.
+// Install: download and save every app file. cache: 'reload' skips Chrome's
+// short-term memory, so a new version never saves an old copy of a file.
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_FILES))
+      .then((cache) => cache.addAll(APP_FILES.map((url) => new Request(url, { cache: 'reload' }))))
       .then(() => self.skipWaiting())
   );
 });
