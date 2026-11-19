@@ -8,7 +8,21 @@ const TUNING = {
   xpAdventure: { 15: 20, 30: 40, 60: 60 }, // minutes -> XP (Session 2)
   xpPtExercises: 20,   // "Did my PT exercises": one gem, once a day (v0.2)
 
-  xpPerLevel: 100,     // level 1 -> 2 needs 100 XP, 2 -> 3 needs 200, and so on
+  // The Oath (v0.3): milestone XP lives in data/oath.js
+  xpOathDay: 25,       // each alcohol-free day
+  xpOathHonest: 5,     // logging a slip honestly (rewards telling the truth, not drinking)
+  xpCraving: 10,       // a craving waited out with Mara
+  cravingMinutes: 15,  // one round of the craving timer
+
+  // The Bend (v0.4): yoga. Milestone XP lives in data/yoga.js.
+  xpYogaSession: 30,             // a full session: 10 minutes or more (7 when traveling)
+  xpYogaBonus: { 20: 5, 30: 10 }, // a small bonus for longer sessions (minutes -> extra XP, the highest that fits)
+  xpYogaShort: 10,               // a short stretch, under a full session (not counted toward the week)
+  xpYogaWeek: 40,                // hitting your weekly target, once a week
+  yogaFull: 10,                  // minutes that make a full session at home
+  yogaTravelFull: 7,             // ... and on a trip
+
+  xpPerLevel: 100,    // level 1 -> 2 needs 100 XP, 2 -> 3 needs 200, and so on
 
   // The words under each energy button on Home
   energyLabels: { 1: 'Tiny', 2: 'Low', 3: 'Okay', 4: 'Good', 5: 'Fired up' },

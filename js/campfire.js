@@ -1,7 +1,7 @@
 // campfire.js — the forgiving streak.
 //
 //   - Any win lights the fire for that day: one logged set, a walk, an Adventure,
-//     or "Did my PT exercises".
+//     "Did my PT exercises", or a full yoga session.
 //   - Each lit day grows it one size, up to 5 (bonfire).
 //   - An unlit Monday to Thursday shrinks it one size, but never below 1 (ember).
 //   - Friday, Saturday and Sunday can never shrink it.
@@ -20,6 +20,7 @@ function isTravelDay(trips = [], key) {
 /**
  * sessions, adventures = every row in those tables. inventory = every loot row.
  * extra.ptDays = the days you did your PT exercises (treasure.js ptDays).
+ * extra.yogaDays = the days you did a full yoga session (yoga.js yogaDays).
  * extra.trips = your trips (profile.trips), whose days count as rest.
  * Returns { level, name, litToday, usedNow }. usedNow = Bedrolls this check
  * just used up: save them (home.js does) so they stay used.
@@ -29,6 +30,7 @@ function campfire(sessions, adventures = [], inventory = [], extra = {}, today =
     ...sessions.filter((s) => s.done && s.done.length).map((s) => s.date),
     ...adventures.map((a) => a.date),
     ...(extra.ptDays || []),
+    ...(extra.yogaDays || []),
   ]);
   const bedrolls = inventory.filter((row) => row.kind === 'bedroll').sort((a, b) => a.at - b.at);
   const usedNow = [];

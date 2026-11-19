@@ -2,6 +2,8 @@
 //
 //   - Backup: save your data to a file, or load one back in
 //   - Treasure: a way into the yoga mat chest (and Match Hinge)
+//   - The Bend: a way into the yoga screen and its settings (yoga.js)
+//   - The Oath: a way into its own screens and settings (oath.js)
 //   - Someday: your idea list, and Copy all
 //   - Version: which release this is, and whether the update window is open
 //   - Equipment: what the app thinks you own (change it in js/data/equipment.js)
@@ -41,12 +43,25 @@ async function renderSettings(main) {
         <button class="${canShareFiles() ? 'btn' : 'btn-gold'}" data-action="save">Save backup file to Downloads</button>
         <label class="btn file-btn">Load backup file<input type="file" id="restore-file" accept=".json,.txt,application/json,text/plain"></label>
         <p class="muted small">Loading adds the file's data. Nothing here is erased.</p>
+        ${profile.oath && profile.oath.inBackup === false ? '<p class="muted small">The Oath is left out of backup files (see Oath settings).</p>' : ''}
       </section>
 
       <section class="panel stack">
         <h3>Treasure</h3>
         ${gemRowHtml(chestStatus(treasures))}
         <a class="btn" href="#treasure">${esc(TREASURES[CURRENT_TREASURE].name)} · Match Hinge</a>
+      </section>
+
+      <section class="panel stack">
+        <h3>The Bend (yoga)</h3>
+        <a class="btn" href="#yoga">The Bend · weekly target, poses, history</a>
+      </section>
+
+      <section class="panel stack">
+        <h3>The Oath</h3>
+        <p class="muted">Private: stays on this phone, and the Home Hub never sees it.</p>
+        <a class="btn" href="#oath">The Oath</a>
+        <a class="btn" href="#oath/settings">Oath settings</a>
       </section>
 
       <section class="panel stack">

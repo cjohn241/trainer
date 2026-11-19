@@ -45,8 +45,8 @@ async function toggleTravel() {
   else location.hash = '#home';
 }
 
-/** This week (Monday to today): how many days had strength, and how many had movement. */
-function travelWeek(sessions, adventures) {
+/** This week (Monday to today): how many days had strength, and how many had movement (yoga counts). */
+function travelWeek(sessions, adventures, yogaRows = []) {
   const monday = new Date();
   monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
   const start = dateKey(monday);
@@ -54,17 +54,19 @@ function travelWeek(sessions, adventures) {
   const won = sessions.filter((s) => s.done && s.done.length);
   return {
     strength: days(won.filter((s) => s.kind === 'strength' || s.kind === 'tiny')),
-    movement: days([...won.filter((s) => s.kind === 'walk'), ...adventures]),
+    movement: days([...won.filter((s) => s.kind === 'walk'), ...adventures, ...yogaRows.filter((y) => y.full)]),
   };
 }
 
 async function renderOutpost(main, profile) {
-  const [sessions, adventures, inventory, treasures] = await Promise.all([
-    db.getAll('sessions'), db.getAll('adventures'), db.getAll('inventory'), db.getAll('treasures'),
+  const [sessions, adventures, inventory, treasures, yogaRows] = await Promise.all([
+    db.getAll('sessions'), db.getAll('adventures'), db.getAll('inventory'), db.getAll('treasures'), db.getAll('yogaSessions'),
   ]);
-  const fire = campfire(sessions, adventures, inventory, { ptDays: ptDays(treasures), trips: profile.trips });
+  const oath = await oathHomeHtml(profile);
+  const yoga = await yogaHomeHtml(profile, yogaRows);
+  const fire = campfire(sessions, adventures, inventory, { ptDays: ptDays(treasures), yogaDays: yogaDays(yogaRows), trips: profile.trips });
   const info = levelInfo(await totalXp());
-  const week = travelWeek(sessions, adventures);
+  const week = travelWeek(sessions, adventures, yogaRows);
   const trip = profile.trips[profile.trips.length - 1];
   const open = sessions.find((s) => !s.finishedAt && s.date === dateKey());
   const bedrolls = inventory.filter((row) => row.kind === 'bedroll' && !row.usedOn).length;
@@ -90,6 +92,8 @@ async function renderOutpost(main, profile) {
 
     main.innerHTML = `
       <section class="stack">
+        ${oath.top}
+        ${yoga.winddown}
         <h2>The Outpost</h2>
         <div class="hearth">
           <canvas class="fire" width="16" height="16" role="img" aria-label="Campfire: ${esc(fire.name)}"></canvas>
@@ -119,7 +123,9 @@ async function renderOutpost(main, profile) {
 
         <button class="btn" data-action="tiny">Tiny Quest · 3 minutes</button>
         <button class="btn" data-action="move">Movement · walk, treadmill, exploring</button>
+        ${yoga.button}
         ${ptButtonHtml(treasures)}
+        ${oath.tile}
 
         <p class="level-line">Level ${info.level} · ${info.into} / ${info.needed} XP</p>
         <p class="center muted small">Home again? Tap 🧳 at the top.</p>
@@ -128,6 +134,7 @@ async function renderOutpost(main, profile) {
 
     playSprite(main.querySelector('canvas.fire'), CAMPFIRE[fire.level - 1]);
     playSprite(main.querySelector('canvas.mara'), SPRITES.idle);
+    playOathBanner(main);
   }
 
   main.onclick = async (e) => {
@@ -151,6 +158,7 @@ async function renderOutpost(main, profile) {
 
     const action = e.target.closest('[data-action]');
     if (!action) return;
+    if (await yogaAction(action.dataset.action)) return;
     if (action.dataset.action === 'continue') location.hash = open.kind === 'walk' ? '#walk' : '#workout';
     if (action.dataset.action === 'tiny') await startQuest('tiny', 1, place.place);
     if (action.dataset.action === 'move') openAdventureSheet('A walk around town, the hotel treadmill, a long airport trek.');
@@ -158,5 +166,5 @@ async function renderOutpost(main, profile) {
   };
 
   draw();
-  return () => { document.getElementById('sheet').onclick = null; };
+  return () => { document.getElementById('sheet').onclick = null; document.getElementById('sheet').onchange = null; };
 }

@@ -22,6 +22,7 @@ const PAL = {
   r: '#b8402c', // fire, outer
   o: '#e8823a', // fire, middle
   y: '#ffe08a', // fire, core
+  k: '#3a3350', // a locked pose's silhouette (yoga.js)
 };
 
 // ----- Body parts, so the poses below stay short -----
@@ -85,6 +86,77 @@ function maraLying() {
   return [...maraHead(1, 22), ['l', 9, 24, 10, 5], ['g', 19, 24, 1, 5], ['L', 20, 24, 3, 5]];
 }
 
+// ----- The Bend (v0.4): yoga poses, unlocked at 5 / 10 / 25 / 50 / 100 sessions -----
+
+const YOGA_MAT = ['b', 2, 30, 28, 1];
+
+/** Move rectangles sideways by dx pixels (the tree pose's wobble). */
+const shiftX = (parts, dx) => parts.map(([c, x, y, w, h]) => [c, x + dx, y, w, h]);
+
+// From the side, facing left, folded in half: legs straight, back hanging down in front,
+// head near the shins, hands stuck at the knees. She's grumbling.
+function maraFold(dy, puff) {
+  const parts = [
+    ['L', 18, 13, 4, 15], ['l', 15, 28, 7, 2],      // straight legs, feet
+    ['L', 17, 9, 5, 5], ['g', 16, 10, 1, 4],        // hips up top, belt
+    ['l', 12, 10 + dy, 5, 9],                        // back, hanging down
+    ['s', 11, 19 + dy, 6, 6], ['h', 11, 25 + dy, 6, 1], // head, upside down
+    ['e', 15, 21 + dy, 1, 1], ['w', 15, 23 + dy, 1, 1],
+    ['h', 12, 26 + dy, 2, 3 - dy],                   // braid, down to the mat
+    ['s', 13, 17 + dy, 5, 2], ['g', 14, 17 + dy, 1, 2], // arm, hand on the knee
+  ];
+  if (puff) parts.push(['w', 8, 22 + dy, 2, 1], ['w', 7, 21 + dy, 1, 1]); // hmph
+  return parts;
+}
+
+// Facing you, the wide lunge, arms straight out like two swords.
+function maraWarrior(dy) {
+  return [
+    ['L', 7, 22, 6, 3], ['L', 7, 25, 3, 3], ['l', 5, 28, 5, 2],                         // front leg, bent
+    ['L', 18, 22, 3, 3], ['L', 20, 24, 3, 3], ['L', 22, 26, 3, 2], ['l', 23, 28, 5, 2], // back leg, straight
+    ...maraFront(2 + dy, 'none'),
+    ['s', 1, 13 + dy, 10, 2], ['s', 21, 13 + dy, 10, 2], ['g', 3, 13 + dy, 2, 2], ['g', 27, 13 + dy, 2, 2],
+  ];
+}
+
+// Facing you, on one leg, hands together over her head.
+function maraTree() {
+  return [
+    ['L', 9, 20, 4, 3], ['L', 10, 23, 3, 2], ['L', 12, 24, 4, 2], ['l', 15, 23, 2, 2], // bent leg, foot on the calf
+    ...maraFront(0, 'none'),
+    ['s', 8, 4, 2, 8], ['s', 23, 4, 2, 8], ['s', 10, 1, 2, 3], ['s', 21, 1, 2, 3], ['s', 12, 0, 9, 1], // arms up, palms together
+    ['g', 8, 7, 2, 1], ['g', 23, 7, 2, 1],
+  ];
+}
+
+// From the side: an upside-down V, hands on the mat at the left, braid on the floor.
+function maraDog(sway) {
+  return [
+    ['L', 16, 9, 4, 4], ['L', 18, 12, 3, 4], ['L', 20, 15, 3, 4], ['L', 21, 18, 3, 4],
+    ['L', 22, 21, 3, 4], ['L', 23, 24, 3, 4], ['l', 23, 28, 5, 2],                    // hips and legs
+    ['g', 15, 10, 1, 4],
+    ['l', 13, 11, 4, 4], ['l', 11, 14, 4, 4], ['l', 9, 17, 4, 4],                     // back
+    ['s', 7, 19, 3, 4], ['s', 5, 22, 3, 4], ['s', 4, 25, 3, 4], ['g', 4, 26, 3, 1],   // arm, hand on the mat
+    ['s', 9, 21, 6, 5], ['h', 9, 26, 6, 1], ['e', 13, 22, 1, 1], ['w', 13, 24, 1, 1], // head, hanging
+    ['h', 11 + sway, 27, 2, 3],                                                        // braid on the floor
+  ];
+}
+
+// Facing you, cross-legged, eyes closed, hands on her knees.
+function maraSeat(glint) {
+  const head = maraHead(12, 9).filter(([c]) => c !== 'e');
+  const parts = [
+    ['L', 6, 26, 20, 3], ['l', 9, 28, 6, 1], ['l', 17, 28, 6, 1], // crossed legs
+    ...head, ['e', 13, 12, 2, 1], ['e', 17, 12, 2, 1],            // eyes closed
+    ['s', 14, 16, 4, 1], ['l', 11, 17, 10, 5], ['s', 12, 22, 8, 3], ['g', 11, 25, 10, 1],
+    ['s', 8, 17, 3, 7], ['s', 21, 17, 3, 7], ['s', 6, 24, 4, 2], ['s', 22, 24, 4, 2],
+    ['g', 8, 21, 3, 2], ['g', 21, 21, 3, 2],
+  ];
+  if (glint === 1) parts.push(['y', 9, 21, 1, 1], ['y', 22, 22, 1, 1]);
+  if (glint === 2) parts.push(['w', 10, 21, 1, 1], ['w', 23, 21, 1, 1], ['y', 9, 20, 1, 1]);
+  return parts;
+}
+
 // ----- The animations: fps = frames per second, frames = the poses -----
 
 const SPRITES = {
@@ -97,6 +169,29 @@ const SPRITES = {
     [...LEGS.stand, ...maraFront(0, 'down')],
     [...LEGS.wide, ...maraFront(0, 'hips')],
   ] },
+
+  // The Oath's check-in: Mara holding a lantern. The flame flickers between frames.
+  lantern: { fps: 2, frames: [
+    [...LEGS.stand, ...maraFront(0, 'down'), ['c', 22, 20, 1, 1], ['g', 21, 21, 3, 1], ['y', 21, 22, 3, 3], ['g', 21, 25, 3, 1]],
+    [...LEGS.stand, ...maraFront(1, 'down'), ['c', 22, 21, 1, 1], ['g', 21, 22, 3, 1], ['o', 21, 23, 3, 3], ['y', 22, 24, 1, 1], ['g', 21, 26, 3, 1]],
+  ] },
+
+  // The craving timer: idle, slowed to a calm breath (in for 2.5 s, out for 2.5 s).
+  breathe: { fps: 0.4, frames: [
+    [...LEGS.stand, ...maraFront(0, 'down')],
+    [...LEGS.stand, ...maraFront(1, 'down')],
+  ] },
+
+  // The Bend's poses (yoga.js). Each one is on its mat.
+  'yoga-fold': { fps: 1, frames: [[YOGA_MAT, ...maraFold(0, false)], [YOGA_MAT, ...maraFold(1, true)]] },
+  'yoga-warrior': { fps: 0.5, frames: [[YOGA_MAT, ...maraWarrior(0)], [YOGA_MAT, ...maraWarrior(1)]] },
+  'yoga-tree': { fps: 1.5, frames: [
+    [YOGA_MAT, ['L', 17, 20, 3, 8], ['l', 17, 28, 4, 2], ...shiftX(maraTree(), -1)],
+    [YOGA_MAT, ['L', 17, 20, 3, 8], ['l', 17, 28, 4, 2], ...maraTree()],
+    [YOGA_MAT, ['L', 17, 20, 3, 8], ['l', 17, 28, 4, 2], ...shiftX(maraTree(), 1)],
+  ] },
+  'yoga-dog': { fps: 0.8, frames: [[YOGA_MAT, ...maraDog(0)], [YOGA_MAT, ...maraDog(-1)]] },
+  'yoga-seat': { fps: 1, frames: [[YOGA_MAT, ...maraSeat(0)], [YOGA_MAT, ...maraSeat(1)], [YOGA_MAT, ...maraSeat(2)]] },
 
   'goblet-squat': { fps: 1.2, frames: [
     [...LEGS.stand, ...maraFront(0, 'hold')],

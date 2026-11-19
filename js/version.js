@@ -8,8 +8,8 @@
 
 const APP = {
   name: 'The Brawnforge',
-  version: '0.2.1',     // sw.js: brawnforge-v7 (0.2.1 = v0.2 with its release date set)
-  releasedOn: '2026-11-03', // the day it went on your phone. Freeze ends 2026-11-17.
+  version: '0.5',       // sw.js: brawnforge-v10
+  releasedOn: '2026-11-03', // kept from v0.2 on purpose: the Oath (v0.3) and The Bend (v0.4) skipped the freeze and don't restart it. Freeze ends 2026-11-17. Scan to claim (v0.5) skipped it too.
   freezeDays: 14,
-  whatsNew: 'v0.2 is released. The 2-week freeze starts today: ideas go in 💡 Someday.',
+  whatsNew: 'Scan to claim: when a walk battle, a strength video or a Down Dog class ends on the TV, Mara shows a code. Scan it with your camera and the workout lands here. One tap and it counts.',
 };

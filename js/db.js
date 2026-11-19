@@ -14,13 +14,17 @@
 //   someday        key: id    your idea list: Broken / Wish / Again
 //   meta           key: key   app bookkeeping, like the last backup date
 //   treasures      key: id    Real-World Treasure: one gem per PT day, and your Match Hinge count (v0.2)
+//   oathDays       key: date  The Oath: one row per day, clear or slip, and the medication check (v0.3)
+//   cravings       key: id    The Oath: each craving timer and how it ended (v0.3)
+//   symptomLogs    key: id    The Oath: each body check you filled in (v0.3)
+//   yogaSessions   key: id    The Bend: each yoga session you logged (v0.4)
 //
 // The database is named 'brawnforge', so it never mixes with The Bard's
 // Tongue even though both live at the same GitHub Pages address.
 
 const db = (() => {
   const DB_NAME = 'brawnforge';
-  const DB_VERSION = 2; // bump this only if the table list below changes (2: added treasures)
+  const DB_VERSION = 4; // bump this only if the table list below changes (2: treasures, 3: the Oath, 4: yoga)
 
   const STORES = {
     profile: 'id',
@@ -34,6 +38,10 @@ const db = (() => {
     someday: 'id',
     meta: 'key',
     treasures: 'id',
+    oathDays: 'date',
+    cravings: 'id',
+    symptomLogs: 'id',
+    yogaSessions: 'id',
   };
 
   let dbPromise = null;

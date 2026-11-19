@@ -4,6 +4,8 @@
 //   - XP, and a level-up if you got one
 //   - the loot chest: one roll per win, saved to your inventory
 //   - after "Did my PT exercises": the new gem in the yoga mat chest
+//   - after yoga: Mara's pose, the week, milestones, pain advice (yoga.js)
+//   - after a strength day: "cooldown stretch?" (yoga.js)
 //   - the knee check, after strength and walk days: Fine / Noticed it / Sore
 //   - Open Hub, a link to the Shawnee Home Hub ("Trained today" arrives there in v0.2)
 // The loot and the knee answer are saved on the quest itself, so a reload
@@ -19,7 +21,10 @@ function rollLoot(inventory) {
 
 /** After a knee answer: two Sore in a row eases knee moves, two Fine in a row brings them back. */
 async function updateKneeMode(sessions) {
-  const answers = sessions.filter((s) => s.knee).sort((a, b) => b.finishedAt - a.finishedAt).map((s) => s.knee);
+  // Knee pain logged after yoga counts as a Sore answer too.
+  const yogaKnee = (await db.getAll('yogaSessions')).filter((y) => y.pain && y.pain.areas.includes('knee'))
+    .map((y) => ({ knee: 'sore', finishedAt: y.at }));
+  const answers = [...sessions.filter((s) => s.knee), ...yogaKnee].sort((a, b) => b.finishedAt - a.finishedAt).map((s) => s.knee);
   const lastAre = (answer, n) => answers.length >= n && answers.slice(0, n).every((a) => a === answer);
   const profile = await db.get('profile', 'me');
   const before = Boolean(profile.kneeEasy);
@@ -30,14 +35,16 @@ async function updateKneeMode(sessions) {
 }
 
 async function renderDone(main, id) {
-  // A win is a quest/walk (sessions), an Adventure (adventures) or a PT gem (treasures).
+  // A win is a quest/walk (sessions), an Adventure (adventures), a PT gem (treasures) or yoga (yogaSessions).
   let store = 'sessions';
   let win = await db.get('sessions', id);
   if (!win) { store = 'adventures'; win = await db.get('adventures', id); }
   if (!win) { store = 'treasures'; win = await db.get('treasures', id); }
+  if (!win) { store = 'yogaSessions'; win = await db.get('yogaSessions', id); }
   if (!win) { location.hash = '#home'; return null; }
 
-  const counts = win.kind === 'adventure' || win.kind === 'gem' || (win.done && win.done.length > 0);
+  const isYoga = win.kind === 'yoga';
+  const counts = isYoga ? win.full : win.kind === 'adventure' || win.kind === 'gem' || (win.done && win.done.length > 0);
   const chest = win.kind === 'gem' ? chestStatus(await db.getAll('treasures'), win.treasure) : null;
   const askKnee = counts && (win.kind === 'strength' || win.kind === 'walk');
   let kneeMessage = '';
@@ -50,14 +57,18 @@ async function renderDone(main, id) {
     await db.put(store, win);
   }
 
+  const yoga = isYoga ? await yogaDoneHtml(win) : null;
+  const cooldown = counts && win.kind === 'strength' ? await yogaCooldownHtml() : '';
+  const earned = (win.xp || 0) + (yoga ? yoga.extraXp : 0);
   const total = await totalXp();
   const now = levelInfo(total);
-  const before = levelInfo(total - (win.xp || 0));
-  const levelUp = counts && now.level > before.level;
+  const before = levelInfo(total - earned);
+  const levelUp = (counts || isYoga) && now.level > before.level;
 
   function titleText() {
     if (win.kind === 'adventure') return 'Adventure logged!';
     if (win.kind === 'gem') return 'PT exercises done!';
+    if (isYoga) return win.full ? 'Yoga logged!' : 'Stretch logged.';
     if (win.kind === 'walk') return win.partial ? 'Walk ended. It still counts.' : 'Walk complete!';
     if (!win.partial) return 'Quest complete!';
     return counts ? 'Quest ended. It still counts.' : 'Come back anytime.';
@@ -101,10 +112,11 @@ async function renderDone(main, id) {
       <section class="stack">
         <h2>${esc(titleText())}</h2>
         <canvas class="mara" width="32" height="32" role="img" aria-label="Mara the Unbent. Tap to skip her pose." data-action="skip-pose"></canvas>
-        ${counts ? `<p class="today">+${win.xp || 0} XP</p>` : ''}
+        ${counts || isYoga ? `<p class="today">+${earned} XP</p>` : ''}
         ${levelUp ? `<p class="notice">Level up! You're level ${now.level}.</p>` : ''}
         <p class="center">${counts ? 'The fire is lit for today.' : 'Mara will keep the fire warm.'}</p>
 
+        ${yoga ? yoga.html : ''}
         ${chestPanel()}
 
         ${item ? `<section class="panel loot loot-${item.rarity}">
@@ -114,13 +126,14 @@ async function renderDone(main, id) {
         </section>` : ''}
 
         ${kneePanel()}
+        ${cooldown}
 
         <p class="level-line">Level ${now.level} · ${now.into} / ${now.needed} XP</p>
         <a class="btn" href="${esc(LINKS.hub)}" target="_blank" rel="noopener">Open Hub</a>
         <button class="btn-gold big" data-action="home">Back to the hall</button>
       </section>
     `;
-    playSprite(main.querySelector('canvas.mara'), counts ? SPRITES['power-pose'] : SPRITES.idle);
+    playSprite(main.querySelector('canvas.mara'), yoga ? SPRITES[yoga.pose] : counts ? SPRITES['power-pose'] : SPRITES.idle);
   }
 
   main.onclick = async (e) => {
@@ -136,10 +149,12 @@ async function renderDone(main, id) {
     }
     const action = e.target.closest('[data-action]');
     if (!action) return;
+    if (isYoga && await yogaDoneAction(action.dataset.action, win)) { yoga.html = (await yogaDoneHtml(win)).html; return draw(); }
+    if (await yogaAction(action.dataset.action)) return;
     if (action.dataset.action === 'home') location.hash = '#home';
     if (action.dataset.action === 'skip-pose') playSprite(action, SPRITES.idle);
   };
 
   draw();
-  return null;
+  return () => { document.getElementById('sheet').onclick = null; document.getElementById('sheet').onchange = null; };
 }

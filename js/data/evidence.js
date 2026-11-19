@@ -65,6 +65,32 @@ const EVIDENCE = {
     year: '2013; 2021', type: 'meta-analysis and review', label: 'Moderate', checked: false,
     url: 'https://pubmed.ncbi.nlm.nih.gov/?term=Spiering+maintaining+physical+performance+minimal+dose+2021',
   },
+  'oath-total': {
+    claim: 'Treating a slip as total failure makes more drinking likely. Treating it as one event makes getting back on track easier.',
+    source: 'Marlatt & Gordon, Relapse Prevention (the abstinence violation effect)',
+    year: 1985, type: 'book and later studies', label: 'Moderate', checked: false,
+    note: "Counting a total of clear days instead of a streak is the app's way of using this. That part is a design choice.",
+    url: 'https://pubmed.ncbi.nlm.nih.gov/?term=abstinence+violation+effect+relapse',
+  },
+  'urge-surfing': {
+    claim: 'Cravings rise, peak and pass. Waiting them out with calm attention ("urge surfing") can help.',
+    source: 'Bowen & Marlatt (urge surfing); Bowen et al. (mindfulness-based relapse prevention)',
+    year: '2009; 2014', type: 'trials', label: 'Emerging', checked: false,
+    note: 'The 15-minute timer is a design choice. No study says every craving ends in exactly 15 minutes.',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/?term=urge+surfing+mindfulness+craving',
+  },
+  'yoga-weekly': {
+    claim: 'A weekly target with no streak to break: 10 minutes counts as a full session.',
+    label: 'Design choice',
+    note: 'No study says 10 minutes of yoga equals a longer class. The point is showing up often enough that it sticks.',
+  },
+  'yoga-benefits': {
+    claim: 'Regular yoga can help flexibility, balance and stress for many people.',
+    source: 'Systematic reviews of yoga trials',
+    type: 'reviews', label: 'Emerging', checked: false,
+    note: 'Results vary, and pain means stop. Ask your PT which poses suit your knee.',
+    url: 'https://pubmed.ncbi.nlm.nih.gov/?term=yoga+systematic+review+flexibility+balance',
+  },
   'design-energy': {
     claim: 'Your energy tap sets how much today\'s quest asks of you.',
     label: 'Design choice',

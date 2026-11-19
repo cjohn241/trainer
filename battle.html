@@ -1,0 +1,975 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battle Walk · The Brawnforge</title>
+  <!--
+    battle.html - the walk pad battle for the TV. tv-cue/cast_mara.py casts it at walk time.
+    Christon the Cleric fights a monster while you walk. Everything follows the Uno's
+    progressive_walk.ino timeline to the second: warm-up, each brisk and easy block, cooldown.
+    The ground and her steps move at the pad's speed, and the monster's HP is your distance.
+    Display only: no buttons, no saved data.
+
+    In the address:
+      level=3        which walk level (1 to 8), same table as the Uno
+      t0=...         when the pad's plug turned on, in milliseconds since 1970 (the computer adds this)
+      walk=2         which walk this is at this level (1 to 3), for the "walks to next level" line
+      offset=2       nudge in seconds if the TV runs ahead (+) or behind (-) the Uno
+      sound=0        no sound at all
+    When the walk ends, the victory card shows a QR code. Scanning it claims the walk in The Brawnforge.
+      music=0        no music (chimes, zaps and Mara still play)
+    For trying it out:
+      speed=20       runs 20 times faster (no t0 needed)
+      at=754         freezes at 754 seconds in (used to check each screen)
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Cinzel:wght@600;700&display=swap">
+  <style>
+    :root {
+      --bg: #15121d;
+      --ink: #ede6d3;
+      --muted: #aaa2bb;
+      --line: #3a3350;
+      --gold: #e6c36e;
+      --ember: #e8823a;
+      --blood: #c0473c;
+      --sky: #7fb3e8;
+      --display: "Cinzel", Georgia, serif;
+      --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--body); }
+
+    /* The world is drawn small (320 x 180) and scaled up, so every pixel stays sharp */
+    #world { position: fixed; inset: 0; width: 100vw; height: 100vh; image-rendering: pixelated; }
+
+    /* TVs crop the edges a little, so the words stay inside a safe margin */
+    .top {
+      position: fixed; left: 4vw; right: 4vw; top: 3.5vh;
+      display: grid; grid-template-columns: 1fr 1.5fr 1fr; align-items: center; gap: 2vw;
+      text-shadow: 0 .3vh .6vh #000;
+    }
+    .foe-level { font-size: 1.5vw; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+    .foe-name { font-family: var(--display); font-weight: 700; font-size: 2.4vw; color: var(--gold); line-height: 1.1; }
+    .hp { position: relative; height: 3.4vh; border: .3vh solid #000; background: #2a1f27; border-radius: .6vh; overflow: hidden; }
+    .hp-fill { position: absolute; inset: 0; width: 100%; background: linear-gradient(#e0614f, var(--blood)); transform-origin: left; }
+    .hp-text { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 700; font-size: 1.6vw; text-shadow: 0 0 .5vh #000; }
+    .round { text-align: right; font-family: var(--display); font-size: 2vw; color: var(--ink); }
+    .round small { display: block; font-family: var(--body); font-size: 1.4vw; color: var(--muted); }
+
+    .bottom {
+      position: fixed; left: 0; right: 0; bottom: 0; height: 32vh;
+      padding: 2vh 4vw 5.5vh;
+      background: linear-gradient(transparent, rgba(13, 11, 18, .88) 18%);
+      display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 2.5vw; align-items: center;
+    }
+    .coach { display: flex; align-items: center; gap: 1.2vw; }
+    #mara { width: 17vh; height: 17vh; image-rendering: pixelated; flex: none; }
+    .bubble {
+      padding: 1.4vh 1.4vw; border: .25vh solid var(--line); border-radius: 1vw; background: rgba(21, 18, 29, .9);
+      font-size: 1.9vw; font-style: italic; line-height: 1.25; min-height: 7vh;
+    }
+    .phase { text-align: center; }
+    .phase-name { font-family: var(--display); font-weight: 700; font-size: 2.7vw; letter-spacing: .06em; line-height: 1; }
+    .phase-speed { font-size: 1.8vw; color: var(--muted); margin-top: .4vh; }
+    .count { font-family: var(--display); font-weight: 700; font-size: 5.6vw; line-height: 1; margin-top: .4vh; font-variant-numeric: tabular-nums; }
+    .count.soon { color: var(--ember); animation: pulse .5s ease-in-out infinite alternate; }
+    @keyframes pulse { to { transform: scale(1.06); } }
+    .then { font-size: 1.6vw; color: var(--muted); margin-top: .4vh; }
+    .stats { text-align: right; font-size: 1.8vw; line-height: 1.5; color: var(--muted); }
+    .stats b { color: var(--ink); font-size: 2.6vw; }
+
+    /* Where you are in the whole walk */
+    .track { position: fixed; left: 4vw; right: 4vw; bottom: 2vh; height: 1.4vh; display: flex; border-radius: .7vh; overflow: hidden; background: #000; }
+    .track span { height: 100%; }
+    .marker { position: fixed; bottom: 1.2vh; width: .5vw; height: 3vh; background: var(--ink); border-radius: .3vw; box-shadow: 0 0 1vh #000; transform: translateX(-50%); }
+
+    /* Damage numbers float up off the monster */
+    .hit { position: fixed; font-family: var(--display); font-weight: 700; font-size: 3.2vw; color: #fff3b0; text-shadow: 0 .3vh 0 #000, 0 0 1vh #000; pointer-events: none; transform: translate(-50%, -50%); }
+
+    /* Big center cards: before the belt starts, and the victory */
+    .card {
+      position: fixed; left: 50.5%; top: 42%; transform: translate(-50%, -50%);
+      width: 28vw; padding: 2vh 1.6vw; text-align: center;
+      background: rgba(13, 11, 18, .86); border: .3vh solid var(--line); border-radius: 1.4vw;
+    }
+    .card.won { left: 72%; top: 47%; width: 36vw; }   /* the foe is gone, so the victory card takes its spot */
+    .qr { display: block; margin: 1.6vh auto 0; width: 24vh; height: 24vh; padding: 1vh; background: #fff; border-radius: .8vw; image-rendering: pixelated; }
+    .card h1 { margin: 0; font-family: var(--display); font-size: 4vw; color: var(--gold); line-height: 1; }
+    .card p { margin: 1.1vh 0 0; font-size: 1.7vw; line-height: 1.3; }
+    .card .big { font-family: var(--display); font-weight: 700; font-size: 3.3vw; color: var(--ember); font-variant-numeric: tabular-nums; }
+    .card .small { font-size: 1.4vw; color: var(--muted); }
+    .sound-note { position: fixed; left: 50%; top: 9.5vh; transform: translateX(-50%); font-size: 1.3vw; color: var(--muted); text-shadow: 0 .2vh .4vh #000; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <canvas id="world" width="320" height="180"></canvas>
+
+  <header class="top">
+    <div>
+      <div class="foe-level" id="foeLevel"></div>
+      <div class="foe-name" id="foeName"></div>
+    </div>
+    <div class="hp"><div class="hp-fill" id="hpFill"></div><div class="hp-text" id="hpText"></div></div>
+    <div class="round" id="round"></div>
+  </header>
+
+  <section class="bottom" id="bottom">
+    <div class="coach">
+      <canvas id="mara" width="32" height="32" role="img" aria-label="Mara the Unbent"></canvas>
+      <div class="bubble" id="bubble"></div>
+    </div>
+    <div class="phase">
+      <div class="phase-name" id="phaseName"></div>
+      <div class="phase-speed" id="phaseSpeed"></div>
+      <div class="count" id="count"></div>
+      <div class="then" id="then"></div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </section>
+
+  <div class="track" id="track"></div>
+  <div class="marker" id="marker"></div>
+  <div class="sound-note" id="soundNote" hidden>Sound is off on this screen. Click the page to turn it on.</div>
+  <div class="hit" id="hit0"></div>
+  <div class="hit" id="hit1"></div>
+
+  <div class="card" id="card" hidden>
+    <h1 id="cardTitle"></h1>
+    <p id="cardLine"></p>
+    <p class="big" id="cardBig"></p>
+    <p class="small" id="cardSmall"></p>
+    <canvas class="qr" id="qr" hidden role="img" aria-label="QR code to claim this walk"></canvas>
+  </div>
+
+  <!-- Mara's drawings from the app (SPRITES, PAL, playSprite). Nothing else from the app. -->
+  <script src="js/data/sprites.js"></script>
+  <script src="js/sprite.js"></script>
+  <script src="js/vendor/qrcode.js"></script>
+
+  <script>
+  (function () {
+    const params = new URLSearchParams(location.search);
+    const num = (name, fallback) => (params.has(name) && !isNaN(Number(params.get(name))) ? Number(params.get(name)) : fallback);
+
+    // ===== The Uno's walk, copied from progressive_walk.ino. Keep these the same as the sketch. =====
+    const LEVELS = [   // { + presses for brisk, brisk minutes, easy minutes, rounds }
+      [2, 3, 2, 4], [2, 4, 2, 4], [2, 4, 1, 5], [2, 5, 1, 5],
+      [3, 3, 2, 5], [3, 4, 2, 5], [3, 5, 1, 5], [3, 6, 1, 5],
+    ];
+    const UNO = {
+      bootMs: 300,         // the Uno starting up after the plug turns on
+      warningSec: 30, startPresses: 1, hopOnSec: 60,
+      rampPresses: 11, rampSec: 180, warmupMin: 2, cooldownMin: 2,
+      pressMs: 150, gapMs: 600,
+    };
+    const STEP_MPH = 0.2;  // one + press on this pad
+    const BASE_MPH = 3.0;
+
+    const level = Math.min(8, Math.max(1, Math.round(num('level', 1))));
+    const walkNo = Math.round(num('walk', 0));   // 1 to 3, if the computer told us
+    const perLevel = 3;
+
+    /** Works out the whole walk the way the Uno runs it, in seconds from the plug turning on. */
+    function buildWalk(lvl) {
+      const [presses, briskMin, easyMin, rounds] = LEVELS[lvl - 1];
+      const press = UNO.pressMs + UNO.gapMs;
+      let ms = UNO.bootMs;
+      const speeds = [{ t: 0, mph: 0 }];
+      const segs = [];
+      const add = (type, start, extra) => segs.push(Object.assign({ type, start: start / 1000, end: ms / 1000 }, extra));
+      const wait = (sec) => { ms += sec * 1000 + 600; }; // waitSeconds() beeps twice (0.6 s) 5 s before the end
+
+      ms += 2000 + lvl * 700 + 2000;                          // low beeps = the level
+      ms += Math.ceil(UNO.warningSec / 5) * 5000;             // one beep every 5 seconds
+      ms += 900;                                              // three fast beeps
+      const beltOn = ms + UNO.pressMs;                        // ON/OFF: the belt starts at 0.6
+      speeds.push({ t: beltOn / 1000, mph: 0.6 });
+      ms += UNO.startPresses * press + 1000;
+      segs.push({ type: 'boot', start: 0, end: beltOn / 1000 });
+
+      let start = beltOn;
+      wait(UNO.hopOnSec);
+      add('hopon', start, { mph: 0.6 });
+
+      start = ms;
+      for (let i = 0; i < UNO.rampPresses; i++) {
+        speeds.push({ t: (ms + UNO.pressMs) / 1000, mph: 0.6 + (BASE_MPH - 0.6) * (i + 1) / UNO.rampPresses });
+        ms += press + Math.floor(UNO.rampSec * 1000 / UNO.rampPresses);
+      }
+      add('ramp', start, { mph: BASE_MPH });
+
+      start = ms;
+      wait(UNO.warmupMin * 60);
+      add('warmup', start, { mph: BASE_MPH });
+
+      const brisk = BASE_MPH + presses * STEP_MPH;
+      for (let r = 1; r <= rounds; r++) {
+        start = ms;
+        for (let k = 1; k <= presses; k++) { speeds.push({ t: (ms + UNO.pressMs) / 1000, mph: BASE_MPH + k * STEP_MPH }); ms += press; }
+        wait(briskMin * 60);
+        add('brisk', start, { mph: brisk, round: r });
+
+        start = ms;
+        for (let k = 1; k <= presses; k++) { speeds.push({ t: (ms + UNO.pressMs) / 1000, mph: brisk - k * STEP_MPH }); ms += press; }
+        const last = r === rounds;
+        wait((last ? UNO.cooldownMin : easyMin) * 60);
+        add(last ? 'cooldown' : 'easy', start, { mph: BASE_MPH, round: r });
+      }
+
+      ms += 900;                                               // three beeps, then ON/OFF: the pad ramps itself down
+      const end = (ms + UNO.pressMs) / 1000;
+      speeds.push({ t: end, mph: 0 });
+
+      // Miles walked at each speed change, so distance at any moment is quick to find
+      let miles = 0;
+      speeds.forEach((s, i) => {
+        if (i > 0) miles += speeds[i - 1].mph * (s.t - speeds[i - 1].t) / 3600;
+        s.miles = miles;
+      });
+      return { segs, speeds, end, rounds, brisk, totalMiles: miles };
+    }
+
+    const WALK = buildWalk(level);
+
+    function speedAt(t) {
+      let s = WALK.speeds[0];
+      for (const p of WALK.speeds) { if (p.t <= t) s = p; else break; }
+      return s;
+    }
+    function milesAt(t) {
+      const s = speedAt(t);
+      return s.miles + s.mph * (Math.max(t, s.t) - s.t) / 3600;
+    }
+    function segAt(t) {
+      if (t < 0) return { type: 'before', start: -Infinity, end: 0, index: -1 };
+      for (let i = 0; i < WALK.segs.length; i++) {
+        if (t < WALK.segs[i].end) return Object.assign({ index: i }, WALK.segs[i]);
+      }
+      return { type: 'done', start: WALK.end, end: Infinity, index: WALK.segs.length };
+    }
+
+    // ===== The clock: seconds since the plug turned on =====
+    const offset = num('offset', 0);
+    const fixedAt = params.has('at') ? num('at', 0) : null;
+    const speedUp = num('speed', 1);
+    const t0 = params.has('t0') ? num('t0', Date.now()) : Date.now() + 2000;
+    const loadedAt = Date.now();
+    function now() {
+      if (fixedAt !== null) return fixedAt;
+      if (speedUp !== 1) return ((loadedAt - t0) + (Date.now() - loadedAt) * speedUp) / 1000 + offset;
+      return (Date.now() - t0) / 1000 + offset;
+    }
+
+    // ===== The foes, one per level =====
+    const FOES = [
+      { name: 'Couch Slime', line: 'It wants you to sit back down.', draw: slime, pal: { m: '#6fbf5a', n: '#a6e08a', d: '#3d7a35', x: '#b8402c' } },
+      { name: 'Snooze Bat', line: 'It feeds on the snooze button.', draw: bat, pal: { m: '#6a4f8a', n: '#9b86b8', d: '#3e2c57', x: '#c0566b' } },
+      { name: 'Doomscroll Wisp', line: 'It glows like a phone at 2 a.m.', draw: wisp, pal: { m: '#8fb8e8', n: '#d4e6ff', d: '#2b3a55', x: '#7fe8ff' } },
+      { name: 'Someday Toad', line: 'It croaks "tomorrow" every time.', draw: toad, pal: { m: '#8a8f3a', n: '#d6d08a', d: '#555a22', x: '#e8823a' } },
+      { name: 'Gloom Golem', line: 'Heavy. Slow. Beatable.', draw: golem, pal: { m: '#8b8f99', n: '#b9bdc6', d: '#5a5e68', x: '#b47cff' } },
+      { name: 'Excuse Imp', line: 'It has a reason for everything.', draw: imp, pal: { m: '#c0473c', n: '#f2ead8', d: '#7a2a2a', x: '#2b1d14' } },
+      { name: 'Lethargy Wyrm', line: 'It coils around tired legs.', draw: wyrm, pal: { m: '#7a5aa8', n: '#c9b3e8', d: '#4b3570', x: '#ffe08a' } },
+      { name: 'The Sloth King', line: 'The last boss of the couch.', draw: slothKing, pal: { m: '#8a6a4a', n: '#d9c3a0', d: '#4a3526', x: '#e6c36e' }, boss: true },
+    ];
+    const FOE = FOES[level - 1];
+
+    // ===== Pixel art. Each part is [color letter, x, y, width, height] on a 32 x 32 grid. =====
+    const COMMON = { v: '#f2ead8', E: '#15121d' };
+    // Christon the Cleric, copied pixel for pixel from her sprite in the Shawnee Home Hub.
+    // One letter per pixel, '.' = empty. 18 wide, 32 tall.
+    const CLERIC_PAL = {
+      B: '#190657', C: '#5ec8e6', D: '#f7f5ee', E: '#ddf6f7', F: '#95714b', G: '#724930',
+      H: '#5a2314', I: '#6e79a6', J: '#c2d2d9', K: '#ffffff', L: '#3a2a20', M: '#a1b3c6',
+      N: '#fff2ca', O: '#eef3f7', P: '#ffd84a', Q: '#3f3b93', R: '#132385', S: '#f6dcaf',
+      T: '#1c1a22', U: '#e4c19c', V: '#65a520', W: '#dcd8cd', X: '#e39a3b', Y: '#fff3b0',
+    };
+    const CLERIC = [
+      '........HH........',
+      '.......HFGH.......',
+      '.......HHHH.......',
+      '......HGFFGB......',
+      '...C.HFFFFFFB.....',
+      '..C.C.GFFHGFGB....',
+      '...C.GFFFHNFGB....',
+      '.CK.OCFGHNNHGB.DD.',
+      '.CKOKCHHNNBBH.DDTX',
+      '.COCOCJBNNBJ.TTDD.',
+      '..CCOCEVNNV.DDDDDD',
+      '...COCUSNNS.DDDDD.',
+      '...CKCBUSSUB.WW...',
+      '...CKCJBBBBJJ.....',
+      '...CKCEJIIJEIIB...',
+      '...CKCIIBBIIJEB...',
+      '..BCKCJBEEBJEEIB..',
+      '..BCKCIBEEBIEEJB..',
+      '.DBCOCBMEEMBEEEBD.',
+      '.DBCCCBGMMGBJEEBD.',
+      '.DBJEIBIGGIBIE.BD.',
+      '.DBIJBMEMMEMB.L.D.',
+      '.DBCCCMEEEEM.LLL..',
+      '.DBCOCBMEEM.LPYPL.',
+      'DDBCOCQBBBB.LPPPL.',
+      '.DDCKCQQBBQ.LPPPL.',
+      '.DDCKCQRBBRQ.LLL..',
+      '...CKCRRBBRRB.....',
+      '..DCKCBBBGBBGBDD..',
+      '...COCFFBGFFGB.D..',
+      '...COCBBBBBBBB....',
+      '...CC.............',
+    ];
+    const CLERIC_LEFT = 7;  // where her grid sits on the 32 x 32 canvas
+
+    // Her walk: f = 0 to 3. On 1 and 3 one boot lifts (left, then right). The lantern flickers.
+    // cast = the staff blazes white for an attack.
+    function cleric(f, cast) {
+      const rows = CLERIC.map((r) => r.split(''));
+      const lift = f === 1 ? [6, 9] : f === 3 ? [10, 13] : null;
+      if (lift) {
+        for (let y = 28; y <= 30; y++) for (let x = lift[0]; x <= lift[1]; x++) {
+          rows[y - 1][x] = rows[y][x] === '.' ? rows[y - 1][x] : rows[y][x];
+          rows[y][x] = y === 30 ? '.' : rows[y + 1][x];
+        }
+      }
+      for (const r of rows) for (let x = 0; x < r.length; x++) {
+        if (f % 2 && r[x] === 'P') r[x] = 'Y'; else if (f % 2 && r[x] === 'Y') r[x] = 'P';
+        if (cast && x <= 5 && (r[x] === 'C' || r[x] === 'O')) r[x] = 'K';
+      }
+      const pad = '.'.repeat(CLERIC_LEFT);
+      return rows.map((r) => pad + r.join(''));
+    }
+
+    // The foes face left, toward her. f = 0 or 1 (their idle bob).
+    function slime(f) {
+      const s = f ? 1 : 0; // squish
+      return [
+        ['d', 5, 27, 22, 2], ['m', 4 - s, 18 + s, 24 + 2 * s, 9 - s], ['m', 7 - s, 14 + s, 18 + 2 * s, 4], ['m', 10, 11 + s, 12, 3],
+        ['n', 9, 13 + s, 4, 2], ['n', 6 - s, 19 + s, 2, 3], ['x', 11, 9 + s, 10, 2], ['x', 12, 8 + s, 8, 1],
+        ['v', 9, 17 + s, 4, 4], ['v', 17, 17 + s, 4, 4], ['E', 9, 18 + s, 2, 2], ['E', 17, 18 + s, 2, 2], ['d', 11, 24, 8, 1],
+      ];
+    }
+    function bat(f) {
+      const w = f ? 4 : 0; // wings up or down
+      return [
+        ['d', 2, 8 + w, 10, 3], ['d', 4, 11 + w, 8, 3], ['d', 7, 14 + w, 5, 2],
+        ['d', 20, 8 + w, 10, 3], ['d', 20, 11 + w, 8, 3], ['d', 20, 14 + w, 5, 2],
+        ['m', 12, 11, 8, 10], ['m', 12, 8, 2, 3], ['m', 18, 8, 2, 3], ['n', 13, 16, 6, 4],
+        ['x', 13, 6, 6, 2], ['x', 18, 4, 2, 2], ['v', 19, 3, 1, 1],
+        ['E', 13, 13, 2, 1], ['E', 17, 13, 2, 1], ['v', 15, 18, 1, 1], ['n', 14, 21, 1, 2], ['n', 17, 21, 1, 2],
+      ];
+    }
+    function wisp(f) {
+      const s = f ? 1 : 0;
+      return [
+        ['m', 9, 6, 14, 16], ['m', 7, 9, 18, 12], ['n', 10, 8, 3, 3],
+        ['m', 7 + s, 21, 4, 3], ['m', 14 + s, 21, 4, 3], ['m', 21 - s, 21, 4, 2],
+        ['E', 11, 12, 2, 3], ['E', 17, 12, 2, 3], ['d', 13, 17, 4, 1],
+        ['m', 6, 16, 3, 2], ['d', 2, 13, 5, 9], ['x', 3, 14, 3, 6], ['v', 4, 15, 1, 1],
+      ];
+    }
+    function toad(f) {
+      const p = f ? 2 : 0; // throat puffs out
+      return [
+        ['d', 3, 24, 6, 3], ['d', 23, 24, 6, 3], ['m', 4, 16, 24, 10], ['m', 7, 13, 18, 3],
+        ['m', 7, 9, 6, 5], ['m', 19, 9, 6, 5], ['v', 8, 10, 4, 3], ['v', 20, 10, 4, 3], ['E', 8, 11, 2, 2], ['E', 20, 11, 2, 2],
+        ['n', 9 - p, 19, 14 + p, 6], ['d', 6, 17, 20, 1], ['d', 14, 14, 2, 1], ['d', 22, 15, 2, 1], ['d', 25, 19, 2, 1],
+      ];
+    }
+    function golem(f) {
+      const a = f ? 1 : 0;
+      return [
+        ['n', 9, 0, 14, 3], ['n', 7, 1, 4, 2], ['n', 21, 1, 4, 2], ['x', 12, 3, 1, 1], ['x', 17, 4, 1, 1],
+        ['d', 9, 23, 5, 7], ['d', 18, 23, 5, 7], ['m', 7, 12, 18, 11], ['m', 11, 5, 10, 7],
+        ['d', 3, 12 + a, 4, 12], ['d', 25, 12 - a, 4, 12], ['m', 2, 24 + a, 6, 4], ['m', 24, 24 - a, 6, 4],
+        ['x', 12, 8, 3, 2], ['x', 17, 8, 3, 2], ['d', 14, 15, 1, 4], ['d', 15, 18, 3, 1], ['n', 8, 13, 4, 2],
+      ];
+    }
+    function imp(f) {
+      const w = f ? 2 : 0;
+      return [
+        ['d', 2, 10 - w, 8, 8], ['d', 22, 10 - w, 8, 8],
+        ['m', 12, 23, 3, 5], ['m', 17, 23, 3, 5], ['m', 12, 15, 8, 8], ['m', 10, 6, 12, 9],
+        ['x', 9, 2, 2, 4], ['x', 21, 2, 2, 4],
+        ['m', 20, 21, 6, 2], ['m', 25, 18, 2, 3], ['d', 25, 15, 3, 3],
+        ['v', 12, 9, 3, 2], ['v', 17, 9, 3, 2], ['E', 12, 9, 1, 2], ['E', 17, 9, 1, 2], ['v', 13, 12, 6, 1],
+        ['n', 4, 17, 6, 9], ['d', 5, 19, 4, 1], ['d', 5, 21, 4, 1], ['d', 5, 23, 3, 1], ['m', 9, 18, 3, 2],
+      ];
+    }
+    function wyrm(f) {
+      const h = f ? 1 : 0;
+      return [
+        ['m', 6, 22, 22, 6], ['m', 9, 18, 16, 4], ['n', 9, 25, 18, 2],
+        ['m', 8, 9 + h, 5, 10], ['n', 9, 12 + h, 2, 7], ['m', 3, 5 + h, 10, 6], ['m', 1, 7 + h, 3, 3],
+        ['x', 6, 6 + h, 2, 2], ['E', 6, 7 + h, 1, 1], ['d', 2, 8 + h, 1, 1],
+        ['d', 12, 16, 2, 2], ['d', 17, 16, 2, 2], ['d', 22, 20, 2, 2], ['d', 9, 4 + h, 2, 2], ['d', 12, 5 + h, 2, 2],
+      ];
+    }
+    function slothKing(f) {
+      const a = f ? 1 : 0;
+      return [
+        ['d', 9, 26, 5, 4], ['d', 18, 26, 5, 4], ['m', 7, 10, 18, 16],
+        ['m', 2, 12 + a, 5, 13], ['m', 25, 12 - a, 5, 13], ['v', 2, 25 + a, 1, 2], ['v', 4, 25 + a, 1, 2], ['v', 26, 25 - a, 1, 2], ['v', 28, 25 - a, 1, 2],
+        ['n', 11, 15, 10, 9], ['m', 9, 3, 14, 9], ['n', 11, 6, 10, 5], ['d', 11, 7, 4, 2], ['d', 17, 7, 4, 2],
+        ['E', 12, 7, 1, 1], ['E', 18, 7, 1, 1], ['E', 15, 9, 2, 1],
+        ['x', 11, 1, 10, 2], ['x', 11, 0, 1, 1], ['x', 15, 0, 2, 1], ['x', 20, 0, 1, 1], ['c', 15, 1, 2, 1],
+      ];
+    }
+
+    /** Draws parts to a small canvas with the same dark outline as Mara. white = a hit flash. */
+    const spriteCache = new Map();
+    function sprite(key, parts, pal, white, halo) {
+      const id = key + (white ? ':w' : '') + (halo ? ':h' + halo : '');
+      if (halo) white = halo;
+      if (spriteCache.has(id)) return spriteCache.get(id);
+      const size = 32;
+      const grid = Array.from({ length: size }, () => Array(size).fill(null));
+      const colorOf = (ch) => (ch === 'c' && !pal.c ? '#e6c36e' : (pal[ch] || COMMON[ch] || '#ff00ff'));
+      if (typeof parts[0] === 'string') {   // letter rows, one letter per pixel
+        parts.forEach((row, y) => [...row].forEach((ch, x) => {
+          if (ch !== '.' && y < size && x < size) grid[y][x] = white ? (white === true ? '#ffffff' : white) : colorOf(ch);
+        }));
+      } else {                              // rectangles
+        for (const [ch, x0, y0, w, h] of parts) {
+          for (let y = Math.max(0, y0); y < Math.min(size, y0 + h); y++)
+            for (let x = Math.max(0, x0); x < Math.min(size, x0 + w); x++) grid[y][x] = white ? (white === true ? '#ffffff' : white) : colorOf(ch);
+        }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size;
+      const g = canvas.getContext('2d');
+      const solid = (x, y) => y >= 0 && y < size && x >= 0 && x < size && grid[y][x];
+      g.fillStyle = '#0d0b12';
+      if (!halo) for (let y = 0; y < size; y++) for (let x = 0; x < size; x++)
+        if (!solid(x, y) && (solid(x + 1, y) || solid(x - 1, y) || solid(x, y + 1) || solid(x, y - 1))) g.fillRect(x, y, 1, 1);
+      for (let y = 0; y < size; y++) for (let x = 0; x < size; x++)
+        if (grid[y][x]) { g.fillStyle = grid[y][x]; g.fillRect(x, y, 1, 1); }
+      spriteCache.set(id, canvas);
+      return canvas;
+    }
+
+    // ===== Drawing the world (320 x 180, scaled up) =====
+    const world = document.getElementById('world');
+    const g = world.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    const GROUND = 118;             // where feet land
+    const PX_PER_MILE = 21600;      // 3.0 mph scrolls 18 pixels a second
+    const CLERIC_X = 64;
+    const FOE_X = 196;
+    const FOE_SCALE = FOE.boss ? 2.5 : 2;
+
+    const SKY = ['#1a1528', '#221a33', '#2c1f3b', '#3a2540', '#4d2c42', '#6a3a40', '#8a4b3c'];
+    const STARS = [[18, 12], [44, 30], [77, 8], [101, 22], [140, 14], [171, 33], [205, 9], [236, 25], [262, 15], [298, 28], [126, 40], [58, 47]];
+
+    function hills(scroll, factor, every, base, color, height) {
+      g.fillStyle = color;
+      const shift = -((scroll * factor) % every);
+      for (let x = shift - every; x < 320 + every; x += every) {
+        for (let i = 0; i < every; i++) {
+          const k = i / every;
+          const h = height * (0.55 + 0.45 * Math.sin(k * Math.PI)) * (0.8 + 0.2 * Math.sin(k * 7.1));
+          g.fillRect(Math.floor(x + i), Math.floor(base - h), 1, Math.ceil(h) + 2);
+        }
+      }
+    }
+    function trees(scroll, factor, every, base, color) {
+      const shift = -((scroll * factor) % every);
+      g.fillStyle = color;
+      for (let x = shift - every; x < 320 + every; x += every) {
+        for (const [dx, tall] of [[4, 18], [15, 24], [27, 15]]) {
+          const cx = Math.floor(x + dx);
+          for (let y = 0; y < tall; y++) {
+            const half = Math.floor((y / tall) * 5) + 1;
+            g.fillRect(cx - half, base - tall + y, half * 2 + 1, 1);
+          }
+          g.fillRect(cx, base, 1, 3);
+        }
+      }
+    }
+    function ground(scroll) {
+      g.fillStyle = '#2b2330'; g.fillRect(0, GROUND - 6, 320, 74);
+      g.fillStyle = '#6b5a46'; g.fillRect(0, GROUND - 3, 320, 10);           // the path
+      g.fillStyle = '#7d6a52'; g.fillRect(0, GROUND - 3, 320, 2);
+      g.fillStyle = '#4f6b3a'; g.fillRect(0, GROUND - 7, 320, 4);            // grass edge
+      const shift = -(scroll % 24);
+      for (let x = shift - 24; x < 344; x += 24) {
+        g.fillStyle = '#54473a'; g.fillRect(Math.floor(x + 5), GROUND + 2, 3, 2); g.fillRect(Math.floor(x + 16), GROUND + 5, 2, 1);
+        g.fillStyle = '#6f8f4a'; g.fillRect(Math.floor(x + 10), GROUND - 9, 1, 3); g.fillRect(Math.floor(x + 12), GROUND - 10, 1, 4);
+      }
+      const shift2 = -((scroll * 1.4) % 37);
+      g.fillStyle = '#3d4f2e';
+      for (let x = shift2 - 37; x < 360; x += 37) { g.fillRect(Math.floor(x), GROUND + 12, 6, 2); g.fillRect(Math.floor(x + 20), GROUND + 20, 4, 2); }
+    }
+
+    function drawWorld(t, seg) {
+      const miles = milesAt(t);
+      const scroll = miles * PX_PER_MILE;
+      SKY.forEach((c, i) => { g.fillStyle = c; g.fillRect(0, i * 13, 320, 14); });
+      g.fillStyle = '#d9cfe8'; for (const [x, y] of STARS) g.fillRect(x, y, 1, 1);
+      g.fillStyle = '#f2e3b3'; g.fillRect(231, 33, 7, 7); g.fillRect(232, 32, 5, 9); g.fillRect(230, 34, 9, 5);
+      g.fillStyle = '#e6c36e'; g.fillRect(230, 34, 2, 5); g.fillRect(231, 33, 2, 7); // the moon
+      hills(scroll, 0.06, 140, 92, '#2a2440', 34);
+      hills(scroll, 0.16, 90, 102, '#30283f', 22);
+      trees(scroll, 0.4, 44, GROUND - 6, '#1f2a26');
+      ground(scroll);
+
+      const done = seg.type === 'done';
+      const sinceEnd = t - WALK.end;
+      const mph = speedAt(t).mph;
+      const casting = seg.type === 'brisk' && boltState(t, seg).casting;
+
+      // Her steps follow the distance: about 2.2 feet a step, 2 drawings per step
+      const steps = miles * 5280 / 2.2;
+      const frame = mph > 0 ? Math.floor(steps * 2) % 4 : 0;
+      // Bolts and the final beam start at her staff and pass behind her, so draw them first
+      if (seg.type === 'brisk') drawBolt(t, seg, 'trail');
+      if (seg.type === 'cooldown' && seg.end - t < 8) finalBeam(t, seg);
+
+      const glow = seg.type === 'easy' || seg.type === 'cooldown';
+      const hop = frame % 2 ? 2 : 0;   // a little hop on each step
+      if (glow) { // charging: a soft halo around her
+        const halo = sprite('cleric' + frame, cleric(frame, false), CLERIC_PAL, false, '#9be4ff');
+        g.globalAlpha = 0.3 + 0.15 * Math.sin(t * 3);
+        for (const [dx, dy] of [[-3, 0], [3, 0], [0, -3], [0, 3], [-2, -2], [2, -2], [-2, 2], [2, 2]])
+          g.drawImage(halo, CLERIC_X + dx, GROUND - 64 - hop + dy, 64, 64);
+        g.globalAlpha = 1;
+      }
+      g.fillStyle = 'rgba(0, 0, 0, .35)'; g.fillRect(CLERIC_X + 18, GROUND - 1, 30, 2);
+      g.drawImage(sprite('cleric' + frame + casting, cleric(frame, casting), CLERIC_PAL), CLERIC_X, GROUND - 64 - hop, 64, 64);
+      if (casting) { // the star on her staff flares
+        const cx = CLERIC_X + 23, cy = GROUND - 64 - hop + 11;
+        g.fillStyle = 'rgba(190, 240, 255, .8)';
+        g.fillRect(cx - 9, cy, 18, 2); g.fillRect(cx, cy - 9, 2, 18);
+        g.fillStyle = '#ffffff'; g.fillRect(cx - 2, cy - 2, 6, 6);
+      }
+
+      // The foe: bobs, flashes when hit, falls at the end
+      const size = 32 * FOE_SCALE;
+      const bob = Math.floor(t * 2) % 2;
+      let alpha = 1, squash = 0;
+      if (done) { alpha = Math.max(0, 1 - sinceEnd / 1.5); squash = Math.min(1, sinceEnd / 1.5); }
+      if (alpha > 0) {
+        const flash = !done && seg.type === 'brisk' && boltState(t, seg).impact;
+        const shake = flash ? (Math.floor(t * 30) % 2 ? 2 : -2) : 0;
+        const h = size * (1 - squash * 0.6);
+        g.globalAlpha = alpha;
+        g.fillStyle = 'rgba(0, 0, 0, .35)'; g.fillRect(FOE_X + 8, GROUND - 1, size - 16, 2);
+        g.drawImage(sprite('foe' + bob + (flash ? 'w' : ''), FOE.draw(bob), FOE.pal, flash), FOE_X + shake, GROUND - h, size, h);
+        g.globalAlpha = 1;
+      }
+      if (done && sinceEnd < 3) burst(FOE_X + size / 2, GROUND - size / 2, sinceEnd);
+
+      if (seg.type === 'brisk') drawBolt(t, seg, 'impact');
+      if (glow && !done) sparkles(t);
+      if (seg.type === 'boot' || seg.type === 'before') { g.fillStyle = 'rgba(13, 11, 18, .45)'; g.fillRect(0, 0, 320, 180); }
+    }
+
+    // Brisk = attack: a holy bolt every 2.5 seconds
+    const BOLT_EVERY = 2.5, BOLT_FLY = 0.45;
+    function boltState(t, seg) {
+      const since = t - seg.start - 1;
+      if (since < 0) return { k: -1 };
+      const k = Math.floor(since / BOLT_EVERY);
+      const into = since - k * BOLT_EVERY;
+      return { k, into, casting: into < BOLT_FLY + 0.1, impact: into >= BOLT_FLY && into < BOLT_FLY + 0.3 };
+    }
+    function drawBolt(t, seg, part) {
+      const s = boltState(t, seg);
+      if (s.k < 0) return;
+      const fromX = CLERIC_X + 22, fromY = GROUND - 55, toX = FOE_X + 20, toY = GROUND - 34;
+      if (part === 'trail' && s.into < BOLT_FLY) {
+        const p = s.into / BOLT_FLY;
+        const x = fromX + (toX - fromX) * p, y = fromY + (toY - fromY) * p;
+        const big = s.k === 0 && seg.round > 1; // the first bolt after an easy block is the charged one
+        for (let i = 0; i < 6; i++) {
+          g.fillStyle = i === 0 ? '#ffffff' : `rgba(94, 200, 230, ${0.85 - i * 0.12})`;
+          const r = (big ? 4 : 2) - Math.min(i, 3) * 0.4;
+          g.fillRect(Math.floor(x - i * 5 - r), Math.floor(y - i * (toY - fromY) / 50 - r), Math.ceil(r * 2), Math.ceil(r * 2));
+        }
+      } else if (part === 'impact' && s.impact) {
+        const r = 6 + (s.into - BOLT_FLY) * 30;
+        g.fillStyle = 'rgba(220, 246, 255, .75)';
+        g.fillRect(Math.floor(toX - r / 2), Math.floor(toY - r / 2), Math.ceil(r), Math.ceil(r));
+      }
+    }
+    function sparkles(t) {
+      g.fillStyle = '#ddf6f7';
+      for (let i = 0; i < 7; i++) {
+        const p = (t * 0.6 + i / 7) % 1;
+        const x = CLERIC_X + 18 + ((i * 13) % 32);
+        g.fillRect(x, Math.floor(GROUND - 8 - p * 60), 1, 2);
+      }
+    }
+    // The last 8 seconds of the cooldown: a beam from her staff that grows until the foe falls
+    function finalBeam(t, seg) {
+      const p = 1 - (seg.end - t) / 8;
+      const fromX = CLERIC_X + 22, fromY = GROUND - 55, toX = FOE_X + 24, toY = GROUND - 16 * FOE_SCALE;
+      const thick = 2 + Math.round(p * 5);
+      for (let x = fromX; x <= toX; x++) {
+        const y = Math.round(fromY + (toY - fromY) * (x - fromX) / (toX - fromX));
+        g.fillStyle = `rgba(94, 200, 230, ${0.35 + p * 0.5})`;
+        g.fillRect(x, y - thick, 1, thick * 2 + 1);
+        g.fillStyle = '#ffffff';
+        g.fillRect(x, y, 1, 1);
+      }
+    }
+    function burst(cx, cy, s) {
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const d = s * 40;
+        g.fillStyle = i % 2 ? '#fff3b0' : '#e6c36e';
+        g.globalAlpha = Math.max(0, 1 - s / 3);
+        g.fillRect(Math.floor(cx + Math.cos(a) * d), Math.floor(cy + Math.sin(a) * d), 2, 2);
+      }
+      g.globalAlpha = 1;
+    }
+
+    // ===== Words on screen =====
+    const $ = (id) => document.getElementById(id);
+    const NAMES = {
+      before: 'Get ready', boot: 'Level ' + level, hopon: 'Step on', ramp: 'Speeding up',
+      warmup: 'Warm-up', brisk: 'Brisk', easy: 'Easy', cooldown: 'Cooldown', done: 'Victory',
+    };
+    const COLORS = { hopon: '#aaa2bb', ramp: '#aaa2bb', warmup: '#7fb3e8', brisk: '#e8823a', easy: '#e6c36e', cooldown: '#7fb3e8', done: '#e6c36e' };
+
+    const MARA = {
+      before: ['Shoes on. Water close. The pad wakes soon.'],
+      boot: [`Count the beeps. ${level} for level ${level}. Then step on.`],
+      hopon: ['Step on. Slow and steady.'],
+      ramp: ['Speeding up. Find your rhythm.'],
+      warmup: ['Warm-up. Loosen your shoulders.', 'Long steps. Arms swing.'],
+      brisk: ['Brisk. Hit it hard.', 'Every step is damage.', 'Eyes up. Arms swing.', "It's tiring. Good."],
+      lastBrisk: ['Last round. Make it count.', 'Everything you have. Now.'],
+      easy: ['Ease off. Breathe. Charge the next one.', 'Slow down. The light builds.'],
+      cooldown: ['Cooldown. Finish it.', 'Easy steps. Let the beam do the work.'],
+      done: ['Down it goes. Scan the code to claim it.'],
+    };
+    function maraLine(seg, t) {
+      let key = seg.type;
+      if (key === 'brisk' && seg.round === WALK.rounds) key = 'lastBrisk';
+      const lines = MARA[key] || MARA.before;
+      const into = isFinite(seg.start) ? Math.max(0, t - seg.start) : 0;
+      return lines[Math.floor(into / 40) % lines.length];
+    }
+
+    const mmss = (sec) => {
+      sec = Math.max(0, Math.ceil(sec));
+      return Math.floor(sec / 60) + ':' + String(sec % 60).padStart(2, '0');
+    };
+    const clockAt = (sec) => new Date(t0 + sec * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+    function nextSeg(seg) {
+      return WALK.segs[seg.index + 1] || null;
+    }
+    function speedText(mph) { return mph.toFixed(1) + ' mph'; }
+
+    // The track along the bottom: one colored piece per part of the walk
+    const track = $('track');
+    for (const s of WALK.segs) {
+      const span = document.createElement('span');
+      span.style.width = ((s.end - s.start) / WALK.end * 100) + '%';
+      span.style.background = s.type === 'boot' ? '#2a2438' : COLORS[s.type];
+      span.style.opacity = s.type === 'brisk' ? 1 : 0.55;
+      track.appendChild(span);
+    }
+
+    $('foeLevel').textContent = 'Level ' + level + (walkNo ? ` · walk ${walkNo} of ${perLevel}` : '');
+    $('foeName').textContent = FOE.name;
+    const totalHp = Math.round(WALK.totalMiles * 5280);   // 1 HP = 1 foot you walk
+
+    let lastPhase = null, lastMaraSprite = null;
+    const hits = [$('hit0'), $('hit1')];
+
+    function render() {
+      const t = now();
+      const seg = segAt(t);
+      drawWorld(t, seg);
+
+      const miles = Math.min(milesAt(t), WALK.totalMiles);
+      const hp = Math.max(0, totalHp - Math.round(miles * 5280));
+      $('hpFill').style.transform = `scaleX(${hp / totalHp})`;
+      $('hpText').textContent = 'HP ' + hp.toLocaleString();
+
+      const round = seg.round || (seg.type === 'done' ? WALK.rounds : 0);
+      $('round').innerHTML = round ? `Round ${round} of ${WALK.rounds}<small>${clockAt(WALK.end)} finish</small>`
+        : `${WALK.rounds} rounds<small>${clockAt(WALK.end)} finish</small>`;
+
+      // The phase, the speed, and the big countdown to the next speed change
+      const next = nextSeg(seg);
+      $('phaseName').textContent = NAMES[seg.type];
+      $('phaseName').style.color = COLORS[seg.type] || 'var(--ink)';
+      const mph = seg.type === 'ramp' ? speedAt(t).mph : (seg.mph || 0);
+      $('phaseSpeed').textContent = seg.type === 'ramp' ? `${speedText(mph)} → 3.0` : seg.mph ? speedText(seg.mph) : '';
+      const left = seg.end - t;
+      const showCount = seg.type !== 'done';
+      $('count').textContent = showCount ? mmss(seg.type === 'before' ? -t : left) : '';
+      $('count').classList.toggle('soon', showCount && left <= 5.6 && seg.type !== 'before');
+      $('then').textContent = seg.type === 'before' ? 'until the pad powers on'
+        : seg.type === 'boot' ? 'until the belt starts'
+        : next ? `then ${NAMES[next.type].toLowerCase()}${next.mph ? ' · ' + speedText(next.mph) : ''}`
+        : seg.type === 'cooldown' ? 'then the pad slows to a stop' : '';
+
+      $('stats').innerHTML = `<b>${miles.toFixed(2)}</b> mi<br>${mmss(Math.max(0, WALK.end - t))} left`;
+
+      // Mara
+      $('bubble').textContent = maraLine(seg, t);
+      const maraSprite = seg.type === 'brisk' || seg.type === 'done' ? 'power-pose' : 'idle';
+      if (maraSprite !== lastMaraSprite) { playSprite($('mara'), SPRITES[maraSprite]); lastMaraSprite = maraSprite; }
+
+      // The track marker
+      const p = Math.min(1, Math.max(0, t / WALK.end));
+      const rect = track.getBoundingClientRect();
+      $('marker').style.left = (rect.left + rect.width * p) + 'px';
+
+      // Damage numbers during brisk: the HP you took off since the last bolt
+      hits.forEach((el) => { el.style.opacity = 0; });
+      if (seg.type === 'brisk') {
+        const s = boltState(t, seg);
+        if (s.k >= 0 && s.into >= BOLT_FLY) {
+          const hitT = seg.start + 1 + s.k * BOLT_EVERY + BOLT_FLY;
+          const dmg = Math.round((milesAt(hitT) - milesAt(hitT - BOLT_EVERY)) * 5280);
+          const age = s.into - BOLT_FLY;
+          const el = hits[s.k % 2];
+          el.textContent = '-' + dmg;
+          el.style.opacity = Math.max(0, 1 - age / 1.6);
+          el.style.left = ((FOE_X + 32 * FOE_SCALE / 2) / 320 * 100) + 'vw';
+          el.style.top = ((GROUND - 32 * FOE_SCALE - 4 - age * 14) / 180 * 100) + 'vh';
+        }
+      }
+
+      // Big cards: before the belt starts, and the victory
+      const card = $('card');
+      card.classList.toggle('won', seg.type === 'done');
+      if (seg.type === 'before' || seg.type === 'boot') {
+        card.hidden = false;
+        $('cardTitle').textContent = 'Level ' + level;
+        $('cardLine').textContent = `${FOE.name} blocks the path. ${FOE.line}`;
+        $('cardBig').textContent = seg.type === 'before' ? 'Pad on in ' + mmss(-t) : 'Belt in ' + mmss(seg.end - t);
+        $('cardSmall').textContent = `${WALK.rounds} rounds of brisk at ${speedText(WALK.brisk)} · about ${Math.round(WALK.end / 60)} minutes`;
+      } else if (seg.type === 'done') {
+        card.hidden = false;
+        $('cardTitle').textContent = 'Victory';
+        $('cardLine').textContent = `${FOE.name} is down.`;
+        $('cardBig').textContent = WALK.totalMiles.toFixed(2) + ' miles';
+        showClaimCode();
+        let after = 'Scan the code with your phone to claim it.';
+        if (walkNo && level < 8) {
+          after += walkNo >= perLevel ? ` Next walk: Level ${level + 1}. A new foe.`
+            : ` ${perLevel - walkNo} more ${perLevel - walkNo === 1 ? 'walk' : 'walks'} to Level ${level + 1}.`;
+        }
+        $('cardSmall').textContent = after;
+      } else {
+        card.hidden = true;
+      }
+      $('qr').hidden = seg.type !== 'done';
+      $('bottom').style.opacity = seg.type === 'before' || seg.type === 'boot' ? 0.6 : 1;
+
+      sound(seg, t);
+      if (fixedAt === null) requestAnimationFrame(render);
+    }
+
+    // ===== Scan to claim: a QR code on the victory card. It opens The Brawnforge with this walk
+    // filled in (js/claim.js), so one tap on the phone logs it. =====
+    let claimDrawn = false;
+    function showClaimCode() {
+      if (claimDrawn) return;
+      claimDrawn = true;
+      const day = new Date(t0);
+      const d = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}`;
+      const claim = new URLSearchParams({ d, lv: level, mi: WALK.totalMiles.toFixed(2), min: Math.round(WALK.end / 60),
+        f: FOE.name, id: 'w' + Math.round(t0) });
+      const link = new URL('./', location.href).href + '#claim/walk?' + claim;
+      const qr = qrcode(0, 'M');
+      qr.addData(link);
+      qr.make();
+      const n = qr.getModuleCount(), border = 2, size = n + border * 2;
+      const canvas = $('qr');
+      canvas.width = canvas.height = size;
+      const q = canvas.getContext('2d');
+      q.fillStyle = '#fff';
+      q.fillRect(0, 0, size, size);
+      q.fillStyle = '#000';
+      for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (qr.isDark(y, x)) q.fillRect(x + border, y + border, 1, 1);
+      window.CLAIM_LINK = link; // for checking
+    }
+
+    // ===== Sound. Best effort on a TV: if the Chromecast blocks page sound, a note at the top says so. =====
+    // A chime and one of Mara's lines when each part starts, bolt zaps and hits, a hum under the
+    // final beam, a boom when the foe falls, and a quiet 8-bit music loop whose beat matches your steps.
+    const quiet = params.get('sound') === '0' || fixedAt !== null;
+    const noMusic = params.get('music') === '0';
+    const MUSIC_VOLUME = 0.5;   // turn the music up or down here (0 to 1)
+    let audio = null, master = null, musicBus = null, noiseBuffer = null, lastResume = 0;
+
+    /** The sound setup, made the first time it's needed. Returns null if this screen has no sound. */
+    function ears() {
+      if (!audio) {
+        try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+        master = audio.createGain();
+        master.connect(audio.destination);
+        musicBus = audio.createGain();
+        musicBus.gain.value = MUSIC_VOLUME;
+        musicBus.connect(master);
+        noiseBuffer = audio.createBuffer(1, audio.sampleRate, audio.sampleRate);
+        const hiss = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < hiss.length; i++) hiss[i] = Math.random() * 2 - 1;
+      }
+      if (audio.state === 'suspended' && performance.now() - lastResume > 2000) {
+        lastResume = performance.now();
+        audio.resume().catch(() => {});
+      }
+      return audio;
+    }
+    document.addEventListener('click', () => ears()); // on a computer, Chrome waits for one click
+
+    const hz = (midi) => 440 * Math.pow(2, (midi - 69) / 12);
+    function note(freq, at, length, type, volume, out, slideTo) {
+      const o = audio.createOscillator(), v = audio.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, at);
+      if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, at + length);
+      v.gain.setValueAtTime(0.0001, at);
+      v.gain.exponentialRampToValueAtTime(volume, at + 0.008);
+      v.gain.exponentialRampToValueAtTime(0.0001, at + length);
+      o.connect(v).connect(out || master);
+      o.start(at);
+      o.stop(at + length + 0.02);
+    }
+    function noise(at, length, volume, cutoff, out) {
+      const src = audio.createBufferSource(), f = audio.createBiquadFilter(), v = audio.createGain();
+      src.buffer = noiseBuffer;
+      f.type = 'lowpass';
+      f.frequency.value = cutoff;
+      v.gain.setValueAtTime(volume, at);
+      v.gain.exponentialRampToValueAtTime(0.0001, at + length);
+      src.connect(f).connect(v).connect(out || master);
+      src.start(at);
+      src.stop(at + length + 0.02);
+    }
+
+    function chime(notes) {
+      let at = audio.currentTime;
+      for (const f of notes) { note(f, at, 0.16, 'square', 0.12); at += 0.16; }
+    }
+    function zap(charged) {   // a bolt leaves her staff
+      const at = audio.currentTime;
+      note(charged ? 1500 : 1200, at, charged ? 0.3 : 0.18, 'square', charged ? 0.07 : 0.045, master, 260);
+      if (charged) note(750, at, 0.3, 'sawtooth', 0.03, master, 130);
+    }
+    function hit() {          // the bolt lands
+      const at = audio.currentTime;
+      noise(at, 0.14, 0.12, 2400);
+      note(150, at, 0.16, 'triangle', 0.12, master, 55);
+    }
+    function boom() {         // the foe falls
+      const at = audio.currentTime;
+      noise(at, 0.9, 0.2, 1200);
+      note(110, at, 0.8, 'triangle', 0.15, master, 35);
+    }
+    function beamHum(seconds) { // rises under the final beam
+      const at = audio.currentTime, o = audio.createOscillator(), f = audio.createBiquadFilter(), v = audio.createGain();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(110, at);
+      o.frequency.linearRampToValueAtTime(330, at + seconds);
+      f.type = 'lowpass';
+      f.frequency.setValueAtTime(300, at);
+      f.frequency.linearRampToValueAtTime(2200, at + seconds);
+      v.gain.setValueAtTime(0.0001, at);
+      v.gain.linearRampToValueAtTime(0.06, at + Math.min(1, seconds / 2));
+      v.gain.linearRampToValueAtTime(0.0001, at + seconds);
+      o.connect(f).connect(v).connect(master);
+      o.start(at);
+      o.stop(at + seconds + 0.05);
+    }
+
+    // Mara's lines, with the music dipped while she talks
+    const VOICE = { hopon: 'step-on', ramp: 'speed-up', warmup: 'warm-up', brisk: 'brisk', lastBrisk: 'last-round', easy: 'easy', cooldown: 'cooldown', done: 'victory' };
+    function say(key) {
+      if (!VOICE[key]) return;
+      new Audio('voice/battle/' + VOICE[key] + '.mp3').play().catch(() => {});
+      const at = audio.currentTime;
+      musicBus.gain.cancelScheduledValues(at);
+      musicBus.gain.setValueAtTime(MUSIC_VOLUME * 0.3, at);
+      musicBus.gain.setValueAtTime(MUSIC_VOLUME * 0.3, at + 3.6);
+      musicBus.gain.linearRampToValueAtTime(MUSIC_VOLUME, at + 4.2);
+    }
+
+    // ----- The music: 32 eighth notes (4 bars) per loop. Numbers are notes (60 = middle C), 0 = rest. -----
+    const THEMES = {
+      march: {   // step on, speeding up, warm-up
+        lead: [62, 0, 65, 0, 69, 0, 67, 65, 64, 0, 67, 0, 65, 0, 64, 62, 62, 0, 65, 0, 69, 0, 72, 71, 69, 0, 67, 0, 65, 64, 62, 0],
+        bass: [50, 0, 50, 0, 50, 0, 50, 0, 48, 0, 48, 0, 48, 0, 48, 0, 46, 0, 46, 0, 46, 0, 46, 0, 45, 0, 45, 0, 45, 0, 45, 0],
+      },
+      battle: {  // brisk
+        lead: [69, 0, 72, 69, 76, 0, 74, 72, 71, 0, 67, 71, 74, 72, 71, 0, 69, 0, 72, 69, 76, 0, 79, 77, 76, 74, 72, 71, 69, 0, 68, 0],
+        bass: [45, 57, 45, 57, 45, 57, 45, 57, 43, 55, 43, 55, 43, 55, 43, 55, 41, 53, 41, 53, 41, 53, 41, 53, 40, 52, 40, 52, 40, 52, 40, 52],
+        hat: true,
+      },
+      calm: {    // easy: charging up
+        lead: [72, 0, 0, 76, 0, 0, 79, 0, 77, 0, 0, 76, 0, 0, 74, 0, 72, 0, 0, 76, 0, 0, 81, 0, 79, 0, 77, 0, 76, 0, 74, 0],
+        bass: [48, 0, 0, 0, 48, 0, 0, 0, 41, 0, 0, 0, 41, 0, 0, 0, 45, 0, 0, 0, 45, 0, 0, 0, 43, 0, 0, 0, 43, 0, 0, 0],
+      },
+      hero: {    // cooldown: the last stand
+        lead: [72, 0, 0, 0, 79, 0, 0, 0, 77, 0, 76, 0, 74, 0, 0, 0, 72, 0, 0, 0, 81, 0, 0, 0, 79, 0, 0, 0, 0, 0, 0, 0],
+        bass: [48, 0, 48, 0, 48, 0, 48, 0, 53, 0, 53, 0, 53, 0, 53, 0, 45, 0, 45, 0, 45, 0, 45, 0, 43, 0, 43, 0, 43, 0, 43, 0],
+      },
+    };
+    // No music before the belt starts, so you can count the Uno's level beeps
+    const THEME_FOR = { hopon: 'march', ramp: 'march', warmup: 'march', brisk: 'battle', easy: 'calm', cooldown: 'hero' };
+    let theme = null, step = 0, nextAt = 0;
+
+    function music(seg, t) {
+      const want = noMusic ? null : THEME_FOR[seg.type] || null;
+      if (want !== theme) { theme = want; step = 0; nextAt = audio.currentTime + 0.05; }
+      if (!theme) return;
+      // One beat per step: about 2.2 feet a step, so 3.0 mph is 120 beats a minute, 3.4 is 136, 3.6 is 144
+      const bpm = Math.min(150, Math.max(90, speedAt(t).mph * 40));
+      const eighth = 60 / bpm / 2;
+      if (nextAt < audio.currentTime - 0.1) nextAt = audio.currentTime + 0.02; // the screen paused, so skip ahead
+      const tune = THEMES[theme];
+      while (nextAt < audio.currentTime + 0.2) {
+        const i = step % 32;
+        if (tune.lead[i]) note(hz(tune.lead[i]), nextAt, Math.min(eighth * 0.9, 0.25), 'square', 0.05, musicBus);
+        if (tune.bass[i]) note(hz(tune.bass[i]), nextAt, Math.min(eighth * 1.8, 0.4), 'triangle', 0.12, musicBus);
+        if (tune.hat && i % 2 === 1) noise(nextAt, 0.04, 0.03, 6000, musicBus);
+        step++;
+        nextAt += eighth;
+      }
+    }
+
+    let lastBolt = -1, lastHit = -1, beamOn = false, boomDone = false;
+    function sound(seg, t) {
+      if (quiet || !ears()) return;
+      $('soundNote').hidden = audio.state === 'running';
+      if (audio.state !== 'running') return;
+      music(seg, t);
+
+      // A new part of the walk: chime, then Mara. Not when the screen first loads mid-walk.
+      const phase = seg.type + (seg.round || '');
+      const first = lastPhase === null;
+      if (phase !== lastPhase) {
+        lastPhase = phase;
+        lastBolt = lastHit = -1;
+        if (!first) {
+          if (seg.type === 'done') chime([523.25, 659.25, 783.99, 1046.5, 1318.5]);
+          else if (seg.type === 'brisk') chime([659.25, 987.77]);
+          else chime([523.25, 783.99]);
+          say(seg.type === 'brisk' && seg.round === WALK.rounds ? 'lastBrisk' : seg.type);
+        }
+      }
+      if (seg.type === 'brisk') {
+        const b = boltState(t, seg);
+        if (b.k > lastBolt && b.into < BOLT_FLY) { lastBolt = b.k; zap(b.k === 0 && seg.round > 1); }
+        if (b.k > lastHit && b.impact) { lastHit = b.k; hit(); }
+      }
+      if (seg.type === 'cooldown' && seg.end - t < 8 && !beamOn) { beamOn = true; beamHum((seg.end - t) / speedUp); }
+      if (seg.type === 'done' && !boomDone && t - WALK.end < 2) { boomDone = true; boom(); }
+    }
+
+    window.BATTLE = { WALK, level, segAt, milesAt, speedAt }; // for checking the timeline
+    requestAnimationFrame(render);
+  })();
+  </script>
+</body>
+</html>

@@ -12,6 +12,14 @@ const BACKUP_KIND = 'brawnforge-backup';
 async function makeBackup() {
   const stores = {};
   for (const name of db.storeNames) stores[name] = await db.getAll(name);
+  // The Oath can be left out (Oath settings): its tables, its XP and treasures, its settings.
+  const me = stores.profile.find((p) => p.id === 'me');
+  if (me && me.oath && me.oath.inBackup === false) {
+    for (const name of OATH_STORES) stores[name] = [];
+    stores.xpLedger = stores.xpLedger.filter((r) => !OATH_XP_REASONS.includes(r.reason));
+    stores.inventory = stores.inventory.filter((r) => r.from !== 'oath');
+    stores.profile = stores.profile.map((p) => { const copy = { ...p }; delete copy.oath; return copy; });
+  }
   return {
     kind: BACKUP_KIND,
     schema: db.version,

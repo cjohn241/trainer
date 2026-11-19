@@ -6,6 +6,9 @@
 //   #done/<id>  after a win: loot, knee check, Open Hub
 //   #treasure   the yoga mat chest: your gems and Match Hinge
 //   #settings   backup, Someday, version, equipment
+//   #oath/...   The Oath: alcohol-free days, check-in, craving timer, body check (oath.js)
+//   #yoga       The Bend: yoga sessions, the week, Mara's poses, history (yoga.js)
+//   #claim/...  Scan to claim: a workout from the TV's QR code (claim.js)
 
 const main = document.getElementById('screen');
 document.getElementById('app-version').textContent = `${APP.name} v${APP.version}`;
@@ -40,7 +43,7 @@ async function show() {
   main.onclick = null;
   closeSheet();
 
-  const [name, id] = location.hash.slice(1).split('/');
+  const [name, id, extra] = location.hash.slice(1).split('/');
 
   try {
     if (name === 'workout') leaveScreen = await renderWorkout(main);
@@ -48,6 +51,9 @@ async function show() {
     else if (name === 'done') leaveScreen = await renderDone(main, id);
     else if (name === 'settings') leaveScreen = await renderSettings(main);
     else if (name === 'treasure') leaveScreen = await renderTreasure(main);
+    else if (name === 'oath') leaveScreen = await renderOath(main, id, extra);
+    else if (name === 'yoga') leaveScreen = await renderYoga(main);
+    else if (name === 'claim') leaveScreen = await renderClaim(main);
     else leaveScreen = await renderHome(main);
   } catch (err) {
     console.error(err);
@@ -77,4 +83,4 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('sw.js').catch((err) => console.warn('Service worker failed', err));
 }
 
-ensureProfile().then(show).then(whatsNewOnce);
+ensureProfile().then(yogaSeedOnce).then(show).then(whatsNewOnce);

@@ -8,6 +8,8 @@
 //   - the Tiny Quest, always there
 //   - Adventure: log a hike, skate or field day (15 / 30 / 60+ minutes)
 //   - "Did my PT exercises": one gem a day for the yoga mat chest (treasure.js)
+//   - Yoga (yoga.js): log a session, this week's dots, a wind-down card in the evening
+//   - The Oath (oath.js): Mara's lantern card at check-in time, a small tile otherwise
 // While you're traveling (🧳 at the top), Home is The Outpost instead (outpost.js).
 
 /** Save an Adventure as a win, give its XP, and show the Done screen. */
@@ -42,17 +44,19 @@ async function renderHome(main) {
   const profile = await db.get('profile', 'me');
   if (isTraveling(profile)) return renderOutpost(main, profile);
 
-  const [sessions, adventures, inventory, treasures] = await Promise.all([
-    db.getAll('sessions'), db.getAll('adventures'), db.getAll('inventory'), db.getAll('treasures'),
+  const [sessions, adventures, inventory, treasures, yogaRows] = await Promise.all([
+    db.getAll('sessions'), db.getAll('adventures'), db.getAll('inventory'), db.getAll('treasures'), db.getAll('yogaSessions'),
   ]);
   const quest = todaysQuest(sessions);
-  const fire = campfire(sessions, adventures, inventory, { ptDays: ptDays(treasures), trips: profile.trips });
+  const fire = campfire(sessions, adventures, inventory, { ptDays: ptDays(treasures), yogaDays: yogaDays(yogaRows), trips: profile.trips });
   const info = levelInfo(await totalXp());
   const today = dateKey();
   const open = sessions.find((s) => !s.finishedAt && s.date === today);
   const firstVisit = sessions.length === 0 && adventures.length === 0;
   const isWalkDay = quest.dayType === 'walk' || quest.dayType === 'walk-bonus';
   const bedrolls = inventory.filter((row) => row.kind === 'bedroll' && !row.usedOn).length;
+  const oath = await oathHomeHtml(profile);
+  const yoga = await yogaHomeHtml(profile, yogaRows);
 
   // A Bedroll just kept the fire from dimming: save that it's used, and say so.
   for (const row of fire.usedNow) await db.put('inventory', row);
@@ -71,6 +75,8 @@ async function renderHome(main) {
 
     main.innerHTML = `
       <section class="stack">
+        ${oath.top}
+        ${yoga.winddown}
         <div class="hearth">
           <canvas class="fire" width="16" height="16" role="img" aria-label="Campfire: ${esc(fire.name)}"></canvas>
           <div>
@@ -95,7 +101,9 @@ async function renderHome(main) {
         <p class="center">${badgeHtml('design-tiny')} <span class="muted small">A Tiny Quest is a full win.</span></p>
         ${isWalkDay ? `<button class="btn-quiet" data-action="strength-instead">Do ${esc(TEMPLATES[nextStrength(sessions)].name)} instead</button>` : ''}
         <button class="btn" data-action="adventure">Adventure · hike, skate, field day</button>
+        ${yoga.button}
         ${ptButtonHtml(treasures)}
+        ${oath.tile}
 
         <p class="level-line">Level ${info.level} · ${info.into} / ${info.needed} XP</p>
       </section>
@@ -103,6 +111,7 @@ async function renderHome(main) {
 
     playSprite(main.querySelector('canvas.fire'), CAMPFIRE[fire.level - 1]);
     playSprite(main.querySelector('canvas.mara'), SPRITES.idle);
+    playOathBanner(main);
   }
 
   main.onclick = async (e) => {
@@ -117,6 +126,7 @@ async function renderHome(main) {
       return;
     }
     if (!action) return;
+    if (await yogaAction(action.dataset.action)) return;
     if (action.dataset.action === 'continue') location.hash = open.kind === 'walk' ? '#walk' : '#workout';
     if (action.dataset.action === 'tiny') await startQuest('tiny', 1);
     if (action.dataset.action === 'strength-instead') await startQuest(nextStrength(sessions), 3);
@@ -125,5 +135,5 @@ async function renderHome(main) {
   };
 
   draw();
-  return () => { document.getElementById('sheet').onclick = null; };
+  return () => { document.getElementById('sheet').onclick = null; document.getElementById('sheet').onchange = null; };
 }
