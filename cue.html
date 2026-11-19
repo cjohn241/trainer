@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mara · The Brawnforge</title>
+  <!--
+    cue.html — Mara's big-screen cue for the TV. The scripts in tv-cue/ cast it to the
+    Chromecast at workout time. Display only: no buttons, no saved data, nothing from The Oath.
+
+    Pick the cue in the address:
+      cue.html?cue=walk       walk pad time
+      cue.html?cue=strength   strength time
+      cue.html?cue=yoga       yoga time (Down Dog)
+      cue.html                today's quest, from WEEK_PLAN in js/data/templates.js
+    Add &sound=0 to skip the chime.
+    Add &line=0 (1, 2 ...) to pick Mara's line instead of a random one.
+    Add &still=1 to hide the clock and today's quest (used to make the voice clips' picture).
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Cinzel:wght@600;700&display=swap">
+  <style>
+    /* Same colors and fonts as css/styles.css, sized for a TV across the room */
+    :root {
+      --bg: #15121d;
+      --ink: #ede6d3;
+      --muted: #aaa2bb;
+      --line: #3a3350;
+      --gold: #e6c36e;
+      --ember: #e8823a;
+      --display: "Cinzel", Georgia, serif;
+      --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden; /* a TV can't scroll */
+    }
+
+    body {
+      background:
+        radial-gradient(ellipse at 28% 62%, rgba(232, 130, 58, .16), transparent 55%), /* torchlight behind Mara */
+        var(--bg);
+      color: var(--ink);
+      font-family: var(--body);
+    }
+
+    /* TVs crop the edges a little, so everything stays inside a safe margin */
+    .cue {
+      height: 100%;
+      padding: 6vh 7vw;
+      display: grid;
+      grid-template-columns: 38% 1fr;
+      align-items: center;
+      gap: 4vw;
+    }
+
+    .stage { display: flex; justify-content: center; align-items: center; }
+
+    /* Mara is drawn 32 x 32 and scaled up. pixelated keeps her edges sharp. */
+    #mara {
+      width: min(68vh, 34vw);
+      height: min(68vh, 34vw);
+      image-rendering: pixelated;
+    }
+
+    .brand {
+      margin: 0 0 1.5vh;
+      font-family: var(--display);
+      font-size: 2.2vw;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    h1 {
+      margin: 0;
+      font-family: var(--display);
+      font-weight: 700;
+      font-size: 8.5vw;
+      line-height: 1;
+      color: var(--gold);
+    }
+
+    .line {
+      margin: 4vh 0 0;
+      padding: 2.2vh 2vw;
+      border: 2px solid var(--line);
+      border-radius: 1.2vw;
+      font-size: 3vw;
+      font-style: italic;
+      line-height: 1.3;
+    }
+
+    .next {
+      margin: 3vh 0 0;
+      font-size: 2.4vw;
+      line-height: 1.35;
+    }
+
+    .meta {
+      margin: 4vh 0 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 2vw;
+      font-size: 2vw;
+      color: var(--muted);
+    }
+
+    #clock { color: var(--ember); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main class="cue">
+    <div class="stage">
+      <canvas id="mara" width="32" height="32" role="img" aria-label="Mara the Unbent"></canvas>
+    </div>
+    <div class="words">
+      <p class="brand">The Brawnforge</p>
+      <h1 id="title"></h1>
+      <p class="line" id="line"></p>
+      <p class="next" id="next"></p>
+      <p class="meta"><span id="quest"></span><span id="clock"></span></p>
+    </div>
+  </main>
+
+  <!-- Only the parts of the app that draw Mara and know today's plan.
+       No database, so the TV never sees your workouts. -->
+  <script src="js/data/sprites.js"></script>
+  <script src="js/sprite.js"></script>
+  <script src="js/data/templates.js"></script>
+  <script src="js/today.js"></script>
+
+  <script>
+    (function () {
+      const params = new URLSearchParams(location.search);
+      const now = new Date();
+      const dayType = WEEK_PLAN[now.getDay()];
+      const day = DAY_NAMES[now.getDay()];
+
+      // Which cue to show. No ?cue= means today's plan decides.
+      let cue = params.get('cue');
+      if (!cue) {
+        if (dayType === 'walk' || dayType === 'walk-bonus') cue = 'walk';
+        else if (dayType === 'strength-a' || dayType === 'strength-b') cue = 'strength';
+        else cue = 'free';
+      }
+
+      // What Mara says for each cue. One line is picked at random each time.
+      const CUES = {
+        walk: {
+          title: 'Walk time',
+          sprite: 'power-pose',
+          lines: [
+            dayType === 'walk-bonus' ? MARA_LINES['walk-bonus'] : MARA_LINES.walk,
+            'The pad wakes in a minute. Be on it.',
+            'Shoes on. Water close. Walk.',
+          ],
+          next: 'The pad starts on its own. Step on when it moves.',
+        },
+        strength: {
+          title: 'Strength time',
+          sprite: dayType === 'strength-b' ? 'db-rdl' : 'goblet-squat',
+          lines: [
+            MARA_LINES['strength-a'],
+            "Iron's waiting. So am I.",
+            'A Tiny Quest is a full win. Start there if you have to.',
+          ],
+          next: 'Open the Brawnforge on your phone and tap your energy.',
+        },
+        yoga: {
+          title: 'Yoga time',
+          sprite: 'yoga-dog',
+          lines: [
+            'Fine. We bend. Mat down.',
+            'Bend now. Sleep better later.',
+            'Ten minutes is a full session.',
+          ],
+          next: 'Open Down Dog on your phone and cast it to this TV.',
+        },
+        free: {
+          title: 'Free day',
+          sprite: 'idle',
+          lines: [MARA_LINES.free],
+          next: 'Hike, skate, or lift. Log it in the Brawnforge after.',
+        },
+      };
+      const pick = CUES[cue] || CUES.free;
+
+      // Fill in the screen
+      document.getElementById('title').textContent = pick.title;
+      const chosen = Number(params.get('line'));
+      const lineIndex = Number.isInteger(chosen) && params.has('line') && chosen < pick.lines.length
+        ? chosen : Math.floor(Math.random() * pick.lines.length);
+      document.getElementById('line').textContent = '"' + pick.lines[lineIndex] + '"';
+      if (params.get('still') === '1') document.querySelector('.meta').style.visibility = 'hidden';
+      document.getElementById('next').textContent = pick.next;
+      document.getElementById('quest').textContent = cue === 'yoga' ? day + ' · The Bend' : todaysQuest([], now).label;
+      playSprite(document.getElementById('mara'), SPRITES[pick.sprite] || SPRITES.idle);
+
+      // The clock in the corner, so you can see how long until the pad starts
+      function showTime() {
+        const t = new Date();
+        const h = t.getHours() % 12 || 12;
+        const m = String(t.getMinutes()).padStart(2, '0');
+        document.getElementById('clock').textContent = h + ':' + m + (t.getHours() < 12 ? ' am' : ' pm');
+      }
+      showTime();
+      setInterval(showTime, 15000);
+
+      // A short 8-bit chime when Mara appears. Some TVs block sound a page
+      // starts on its own. If this one does, the chime just stays quiet.
+      function chime() {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        const ctx = new Ctx();
+        const notes = [523.25, 659.25, 783.99, 1046.5]; // C E G C, going up
+        ctx.resume().then(() => {
+          if (ctx.state !== 'running') return;
+          notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const vol = ctx.createGain();
+            const start = ctx.currentTime + 0.2 + i * 0.16;
+            osc.type = 'square';
+            osc.frequency.value = freq;
+            vol.gain.setValueAtTime(0.0001, start);
+            vol.gain.exponentialRampToValueAtTime(0.12, start + 0.02);
+            vol.gain.exponentialRampToValueAtTime(0.0001, start + 0.15);
+            osc.connect(vol).connect(ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.16);
+          });
+        }).catch(() => {});
+      }
+      if (params.get('sound') !== '0') chime();
+    })();
+  </script>
+</body>
+</html>
