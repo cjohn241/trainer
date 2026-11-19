@@ -161,7 +161,7 @@
     ];
     const UNO = {
       bootMs: 300,         // the Uno starting up after the plug turns on
-      warningSec: 30, startPresses: 1, hopOnSec: 60,
+      warningSec: 30, startPresses: 2, wakeMs: 3000, hopOnSec: 60,
       rampPresses: 11, rampSec: 180, warmupMin: 2, cooldownMin: 2,
       pressMs: 150, gapMs: 600,
     };
@@ -185,9 +185,9 @@
       ms += 2000 + lvl * 700 + 2000;                          // low beeps = the level
       ms += Math.ceil(UNO.warningSec / 5) * 5000;             // one beep every 5 seconds
       ms += 900;                                              // three fast beeps
-      const beltOn = ms + UNO.pressMs;                        // ON/OFF: the belt starts at 0.6
+      const beltOn = ms + (UNO.startPresses - 1) * (press + UNO.wakeMs) + UNO.pressMs; // the last ON/OFF press starts the belt at 0.6
       speeds.push({ t: beltOn / 1000, mph: 0.6 });
-      ms += UNO.startPresses * press + 1000;
+      ms += UNO.startPresses * (press + UNO.wakeMs);          // each ON/OFF press, then the wait while the pad wakes
       segs.push({ type: 'boot', start: 0, end: beltOn / 1000 });
 
       let start = beltOn;
