@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bedroom Reset · The Brawnforge</title>
+  <!--
+    clean.html - Mara's bedroom reset for the TV. Four timed rounds and a bonus, with her
+    big dialogue portrait (64 x 64) so you can see her face from across the room.
+
+    tools/clean-video/build_clean.py screenshots this page into voice/clean.mp4, with her
+    voice and the bells. The TV plays that video (cast_mara.py clean), so the sound always works.
+    You can also open this page on its own. Then it runs live and plays sound if the browser lets it.
+
+    In the address:
+      at=95       freezes at 95 seconds in (the video builder uses this)
+      speed=20    runs 20 times faster, for trying it out
+      sound=0     no sound in live mode
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Cinzel:wght@600;700&display=swap">
+  <style>
+    :root {
+      --bg: #15121d;
+      --card: #1e1a29;
+      --ink: #ede6d3;
+      --muted: #aaa2bb;
+      --line: #3a3350;
+      --gold: #e6c36e;
+      --ember: #e8823a;
+      --blood: #c0473c;
+      --display: "Cinzel", Georgia, serif;
+      --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--ink); font-family: var(--body); }
+    body {
+      background:
+        radial-gradient(ellipse at 24% 52%, rgba(232, 130, 58, .18), transparent 52%),
+        var(--bg);
+    }
+
+    /* Everything moves together when Mara yells */
+    #screen { position: absolute; inset: 0; padding: 5vh 4.5vw; display: grid; grid-template-columns: auto 1fr; gap: 3.5vw; align-items: center; }
+
+    /* Her portrait in an RPG dialogue frame */
+    .portrait { display: flex; flex-direction: column; align-items: center; }
+    .frame {
+      padding: 1vh;
+      border: .45vh solid var(--line);
+      border-radius: 1.4vh;
+      background: radial-gradient(circle at 50% 40%, #2c2440, #17131f 70%);
+      box-shadow: 0 0 0 .45vh #0d0b12, 0 2vh 5vh rgba(0, 0, 0, .5);
+    }
+    #mara { display: block; width: 76vh; height: 76vh; image-rendering: pixelated; }
+    .nameplate {
+      margin-top: -2.4vh; padding: .7vh 2.4vh; position: relative;
+      background: var(--card); border: .35vh solid var(--gold); border-radius: .8vh;
+      font-family: var(--display); font-weight: 700; font-size: 2.6vh; letter-spacing: .14em; color: var(--gold);
+    }
+
+    .side { display: flex; flex-direction: column; height: 100%; justify-content: center; min-width: 0; }
+    .top { display: flex; justify-content: space-between; align-items: center; font-size: 2.5vh; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+    .pips { display: flex; gap: 1vh; }
+    .pip { width: 2.4vh; height: 2.4vh; border-radius: 50%; border: .3vh solid var(--line); }
+    .pip.done { background: var(--gold); border-color: var(--gold); }
+    .pip.now { border-color: var(--ember); box-shadow: 0 0 1.2vh var(--ember); }
+    .pip.bonus { border-radius: .4vh; transform: rotate(45deg) scale(.85); }
+
+    .label { margin-top: 3vh; font-size: 3vh; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+    h1 { margin: .4vh 0 0; font-family: var(--display); font-weight: 700; font-size: 8vh; line-height: 1.02; color: var(--gold); }
+    h1.alarm { color: var(--blood); }
+    .task { margin: 1.6vh 0 0; font-size: 3.4vh; line-height: 1.3; }
+    .timer { margin-top: 1vh; font-family: var(--display); font-weight: 700; font-size: 19vh; line-height: 1; color: var(--ember); font-variant-numeric: tabular-nums; }
+    .timer.low { color: var(--blood); }
+    .timer.hide { visibility: hidden; }
+
+    .bubble {
+      position: relative; margin-top: 2.4vh; padding: 2vh 2.4vh; min-height: 11vh;
+      background: var(--card); border: .35vh solid var(--line); border-radius: 1.6vh;
+      font-size: 3.3vh; font-style: italic; line-height: 1.3;
+    }
+    .bubble::before {
+      content: ""; position: absolute; left: -2.2vh; top: 3vh; border: 1.1vh solid transparent;
+      border-right: 1.1vh solid var(--line); border-top-width: 1.2vh; border-bottom-width: 1.2vh;
+    }
+    .bubble.empty { visibility: hidden; }
+    .bubble b { font-style: normal; color: var(--blood); }
+    .foot { margin-top: 2vh; display: flex; justify-content: space-between; font-size: 2.6vh; color: var(--muted); }
+    .foot b { color: var(--gold); }
+
+    /* The red flash when she yells */
+    #flash { position: absolute; inset: 0; pointer-events: none; box-shadow: inset 0 0 22vh 6vh rgba(192, 71, 60, .55); opacity: 0; }
+
+    /* XP pop after each round */
+    #pop { position: absolute; right: 6vw; top: 16vh; font-family: var(--display); font-weight: 700; font-size: 9vh; color: var(--gold); text-shadow: 0 .6vh 0 #000, 0 0 3vh rgba(230, 195, 110, .6); opacity: 0; }
+
+    .sound-note { position: absolute; left: 50%; top: 1.5vh; transform: translateX(-50%); font-size: 2vh; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div id="screen">
+    <div class="portrait">
+      <div class="frame"><canvas id="mara" width="64" height="64" role="img" aria-label="Mara the Unbent"></canvas></div>
+      <div class="nameplate">MARA THE UNBENT</div>
+    </div>
+    <div class="side">
+      <div class="top"><span>Bedroom Reset</span><span class="pips" id="pips"></span></div>
+      <div class="label" id="label"></div>
+      <h1 id="title"></h1>
+      <p class="task" id="task"></p>
+      <div class="timer" id="timer"></div>
+      <div class="bubble" id="bubble"></div>
+      <div class="foot"><span id="next"></span><span>XP <b id="xp">0</b> / 60</span></div>
+    </div>
+  </div>
+  <div id="flash"></div>
+  <div id="pop"></div>
+  <p class="sound-note" id="soundNote" hidden>This TV blocked the sound. The video version has it.</p>
+
+  <script>
+    // ===== Mara's portrait: one letter per pixel, made by tools/clean-video/mara_portrait.py =====
+    const PORTRAIT = {"pal":{"O":"#0d0b12","h":"#2b1d14","H":"#4a3322","k":"#1a110b","B":"#1f150e","s":"#7f9a63","T":"#9cb57f","S":"#627b4b","D":"#465a35","e":"#15121d","E":"#e8dfc8","a":"#e0892f","w":"#f2ead8","W":"#c9bfa6","m":"#3a1418","t":"#a8474a","l":"#7a4b2e","K":"#4a2e20","q":"#9a6440","g":"#e6c36e","G":"#b08a3e","c":"#d6c9ae"},"frames":{"stern":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhsssTTssssssssssssscsSShhhhhO.OOsO..........","...........OssOOhhhhhssTsssssssssssssssscSShhhhhOOssO...........","...........OsSshhhhkhBBBBBBBsssssssssBBBcBBBhhkhsssDO...........","............OsShhhhkhBBBBBBBBsssssssBBBBBBBBhhkhhsDO............","............OsShhHhkhSSSSBBBBsssssssBBBBScShhhkhhsDO............","............OsshhHhkhsseeeeeBsssssssBeeeeeShhhkhhDO.............",".............OshhhhkheeeeeeeessssssseeeeeeeehhkhhsO.............",".............OshhhhkhsEEEaeEEssTssssEEeaEEEhhhkhhsO.............","..............OhhhhkhssEEaaEsssTsssssEaaEEchhhkhhO..............","..............OhhhhkhssDDDDDsssTssSssDDDDDchhhkhhO..............","..............OhhhhkhssssssssssTssSssssssSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssssssssssTTssssssssSShhhhkhO..............",".............OhhHhkhssssssssSDessseDSssssSShhhhkhO..............",".............OhhhhkhsssssswssSSSSSSSswsssSShhhhkhhO.............",".............OhhhhkhsssssswwssSSSSSsswwssSSShhhkhhOOOO..........",".............OhhhhkhsssssswwssssssssswwssSSShhhkhhhhhkO.........",".............OhhhhkhsssssswWssssssssswWssSSShhhkhhhhHhO.........",".............OhhhhkhOssssswWDDDDDDDDDwWssSSOhhhkhkhhhhO.........",".............OhhhhkhOssssswWSSSSSSSSSwWssSSOhhhhhhhhhhkO........",".............OhhhhkO.OsssssssTTTTTTTsssssSOOhhhhhhhHhhhO........",".............OhhhhhO..OsssssssssssssSSSSSO.OhhhhhhkhhhhO........",".............OhhhhhO...OssssssssssssSSSSO..OhhhhhhhhhkO.........",".............OhhhhhO....OsssssssssssSSSO...OhhhhhhhhHhO.........",".............OhHhhhO....OsDsssssssssSSDO...OhhhhhkhhhhO.........",".............OhhhhhO....OsSDDDDDDDDDDDsO....OhhhhOhhhhkO........",".............OhhhhhO....OsSSSSSSSSSSSSsO....OhhhhOhHhhhO........",".............OhhhhhO...OssssssssssssSSssO...OhhhhOkhhhhO........","............OhhhhhhO...OssssssssssssSSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOssssssssssssSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllsssssssssssssSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."],"stern-talk":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhsssTTssssssssssssscsSShhhhhO.OOsO..........","...........OssOOhhhhhssTsssssssssssssssscSShhhhhOOssO...........","...........OsSshhhhkhBBBBBBBsssssssssBBBcBBBhhkhsssDO...........","............OsShhhhkhBBBBBBBBsssssssBBBBBBBBhhkhhsDO............","............OsShhHhkhSSSSBBBBsssssssBBBBScShhhkhhsDO............","............OsshhHhkhsseeeeeBsssssssBeeeeeShhhkhhDO.............",".............OshhhhkheeeeeeeessssssseeeeeeeehhkhhsO.............",".............OshhhhkhsEEEaeEEssTssssEEeaEEEhhhkhhsO.............","..............OhhhhkhssEEaaEsssTsssssEaaEEchhhkhhO..............","..............OhhhhkhssDDDDDsssTssSssDDDDDchhhkhhO..............","..............OhhhhkhssssssssssTssSssssssSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssssssssssTTssssssssSShhhhkhO..............",".............OhhHhkhssssssssSDessseDSssssSShhhhkhO..............",".............OhhhhkhsssssswssSSSSSSSswsssSShhhhkhhO.............",".............OhhhhkhsssssswwssSSSSSsswwssSSShhhkhhOOOO..........",".............OhhhhkhsssssswwssssssssswwssSSShhhkhhhhhkO.........",".............OhhhhkhsssssswWDDDDDDDDDwWssSSShhhkhhhhHhO.........",".............OhhhhkhOssssswWmWWWWWWWmwWssSSOhhhkhkhhhhO.........",".............OhhhhkhOssssswWmmmmmmmmmwWssSSOhhhhhhhhhhkO........",".............OhhhhkO.OssssssDDDDDDDDDssssSOOhhhhhhhHhhhO........",".............OhhhhhO..OssssssTTTTTTTSSSSSO.OhhhhhhkhhhhO........",".............OhhhhhO...OssssssssssssSSSSO..OhhhhhhhhhkO.........",".............OhhhhhO....OsssssssssssSSSO...OhhhhhhhhHhO.........",".............OhHhhhO....OsDsssssssssSSDO...OhhhhhkhhhhO.........",".............OhhhhhO....OsSDDDDDDDDDDDsO....OhhhhOhhhhkO........",".............OhhhhhO....OsSSSSSSSSSSSSsO....OhhhhOhHhhhO........",".............OhhhhhO...OssssssssssssSSssO...OhhhhOkhhhhO........","............OhhhhhhO...OssssssssssssSSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOssssssssssssSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllsssssssssssssSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."],"stern-blink":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhsssTTssssssssssssscsSShhhhhO.OOsO..........","...........OssOOhhhhhssTsssssssssssssssscSShhhhhOOssO...........","...........OsSshhhhkhBBBBBBBsssssssssBBBcBBBhhkhsssDO...........","............OsShhhhkhBBBBBBBBsssssssBBBBBBBBhhkhhsDO............","............OsShhHhkhSSSSBBBBsssssssBBBBScShhhkhhsDO............","............OsshhHhkhssssSSSBsssssssBSSSscShhhkhhDO.............",".............OshhhhkhssSSSSSSsssssssSSSSSSShhhkhhsO.............",".............OshhhhkhseeeeeeessTsssseeeeeeehhhkhhsO.............","..............OhhhhkhssSSSSSsssTsssssSSSSSchhhkhhO..............","..............OhhhhkhssssssssssTssSssssssSchhhkhhO..............","..............OhhhhkhssssssssssTssSssssssSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssssssssssTTssssssssSShhhhkhO..............",".............OhhHhkhssssssssSDessseDSssssSShhhhkhO..............",".............OhhhhkhsssssswssSSSSSSSswsssSShhhhkhhO.............",".............OhhhhkhsssssswwssSSSSSsswwssSSShhhkhhOOOO..........",".............OhhhhkhsssssswwssssssssswwssSSShhhkhhhhhkO.........",".............OhhhhkhsssssswWssssssssswWssSSShhhkhhhhHhO.........",".............OhhhhkhOssssswWDDDDDDDDDwWssSSOhhhkhkhhhhO.........",".............OhhhhkhOssssswWSSSSSSSSSwWssSSOhhhhhhhhhhkO........",".............OhhhhkO.OsssssssTTTTTTTsssssSOOhhhhhhhHhhhO........",".............OhhhhhO..OsssssssssssssSSSSSO.OhhhhhhkhhhhO........",".............OhhhhhO...OssssssssssssSSSSO..OhhhhhhhhhkO.........",".............OhhhhhO....OsssssssssssSSSO...OhhhhhhhhHhO.........",".............OhHhhhO....OsDsssssssssSSDO...OhhhhhkhhhhO.........",".............OhhhhhO....OsSDDDDDDDDDDDsO....OhhhhOhhhhkO........",".............OhhhhhO....OsSSSSSSSSSSSSsO....OhhhhOhHhhhO........",".............OhhhhhO...OssssssssssssSSssO...OhhhhOkhhhhO........","............OhhhhhhO...OssssssssssssSSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOssssssssssssSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllsssssssssssssSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."],"yell":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhBBsTTssssssssssssscsSBBhhhhO.OOsO..........","...........OssOOhhhhhBBBBBsssssssssssssBcBBBhhhhOOssO...........","...........OsSshhhhkhSSBBBBsssssssssssBBBBShhhkhsssDO...........","............OsShhhhkhssSSBBBsssssssssBBBcSShhhkhhsDO............","............OsShhHhkhseeeeeeessDsDsseeeeeeehhhkhhsDO............","............OsshhHhkhesEEEEEBssDsDssBEEEEESehhkhhDO.............",".............OshhhhkhsEEEaaEEsssssssEEaaEEEhhhkhhsO.............",".............OshhhhkhsEEEaeEEssTssssEEeaEEEhhhkhhsO.............","..............OhhhhkhsEEEEEEEssTssssEEEEEEEhhhkhhO..............","..............OhhhhkhssEEEEEsssTssSssEEEEEchhhkhhO..............","..............OhhhhkhssSSSSSsssTssSssSSSSSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssssssssssTTssssssssSShhhhkhO..............",".............OhhHhkhssssssssDDessseDDssssSShhhhkhO..............",".............OhhhhkhsssssssDsSSSSSSSsDsssSShhhhkhhO.............",".............OhhhhkhssssssDsssSSSSSsssDssSSShhhkhhOOOO..........",".............OhhhhkhsssssDDDDDDDDDDDDDDDsSSShhhkhhhhhkO.........",".............OhhhhkhsssssDmmWWWWWWWWWmmDsSSShhhkhhhhHhO.........",".............OhhhhkhOsssmmmwwmmmmmmmwwmmsssOhhhkhkhhhhO.........",".............OhhhhkhOsssmmmwwmmmmmmmwwmmsssOhhhhhhhhhhkO........",".............OhhhhkOOsssmmmwWmmmmmmmwWmssssOhhhhhhhHhhhO........",".............OhhhhhOOssssmmwWmtttttmwWmSSSSOhhhhhhkhhhhO........",".............OhhhhhOOssssmmwWtttttttwWmSSSSOhhhhhhhhhkO.........",".............OhhhhhO.OsssmmwWtttttttwWSSSSOOhhhhhhhhHhO.........",".............OhHhhhO..OsssmwWtttttttwWSSSO.OhhhhhkhhhhO.........",".............OhhhhhO...OssswWWWWWWWWwWSSO...OhhhhOhhhhkO........",".............OhhhhhO....OsssssssssssSSSO....OhhhhOhHhhhO........",".............OhhhhhO...OssssDDDDDDDDDSssO...OhhhhOkhhhhO........","............OhhhhhhO...OssssDDDDDDDDDSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOsssSSSSSSSSSSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllssssSSSSSSSSSSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."],"yell-talk":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhBBsTTssssssssssssscsSBBhhhhO.OOsO..........","...........OssOOhhhhhBBBBBsssssssssssssBcBBBhhhhOOssO...........","...........OsSshhhhkhSSBBBBsssssssssssBBBBShhhkhsssDO...........","............OsShhhhkhssSSBBBsssssssssBBBcSShhhkhhsDO............","............OsShhHhkhseeeeeeessDsDsseeeeeeehhhkhhsDO............","............OsshhHhkhesEEEEEBssDsDssBEEEEESehhkhhDO.............",".............OshhhhkhsEEEaaEEsssssssEEaaEEEhhhkhhsO.............",".............OshhhhkhsEEEaeEEssTssssEEeaEEEhhhkhhsO.............","..............OhhhhkhsEEEEEEEssTssssEEEEEEEhhhkhhO..............","..............OhhhhkhssEEEEEsssTssSssEEEEEchhhkhhO..............","..............OhhhhkhssSSSSSsssTssSssSSSSSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssssssssssTTssssssssSShhhhkhO..............",".............OhhHhkhssssssssDDessseDDssssSShhhhkhO..............",".............OhhhhkhsssssssDsSSSSSSSsDsssSShhhhkhhO.............",".............OhhhhkhssssssDsssSSSSSsssDssSSShhhkhhOOOO..........",".............OhhhhkhsssssDDDDDDDDDDDDDDDsSSShhhkhhhhhkO.........",".............OhhhhkhsssssDmwwWWWWWWWwwmDsSSShhhkhhhhHhO.........",".............OhhhhkhOsssmmmwwmmmmmmmwwmmsssOhhhkhkhhhhO.........",".............OhhhhkhOsssmmmwWmmmmmmmwWmmsssOhhhhhhhhhhkO........",".............OhhhhkOOssssmmwWtttttttwWmssssOhhhhhhhHhhhO........",".............OhhhhhO.OsssmmwWtttttttwWmSSSOOhhhhhhkhhhhO........",".............OhhhhhO..OsssmwWmmmmmmmwWSSSO.OhhhhhhhhhkO.........",".............OhhhhhO...OssswWWWWWWWWwWSSO..OhhhhhhhhHhO.........",".............OhHhhhO....OsssssssssssSSSO...OhhhhhkhhhhO.........",".............OhhhhhO....OsssDDDDDDDDDSsO....OhhhhOhhhhkO........",".............OhhhhhO....OsSSDDDDDDDDDSsO....OhhhhOhHhhhO........",".............OhhhhhO...OsssSSSSSSSSSSSssO...OhhhhOkhhhhO........","............OhhhhhhO...OsssSSSSSSSSSSSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOssssssssssssSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllsssssssssssssSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."],"smirk":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhssBBBBsssssssssssscsSShhhhhO.OOsO..........","...........OssOOhhhhhsBBBBBBsssssssssssscSShhhhhOOssO...........","...........OsSshhhhkhBBSSSSBBssssssssssscSShhhkhsssDO...........","............OsShhhhkhBSssssSBsssssssssssBBBBhhkhhsDO............","............OsShhHhkhSeeeeeeesssssssBBBBBBBBhhkhhsDO............","............OsshhHhkhesEEaaEssssssssSSSSSSShhhkhhDO.............",".............OshhhhkhsEEEaeEEssssssseeeeeeeehhkhhsO.............",".............OshhhhkhsEEEaeEEssTssssEEeaEEEhhhkhhsO.............","..............OhhhhkhssEEaaEsssTsssssEaaEEchhhkhhO..............","..............OhhhhkhssSSSSSsssTssSssSSSSSchhhkhhO..............","..............OhhhhkhssssssssssTssSssssssSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssssssssssTTssssTSssSShhhhkhO..............",".............OhhHhkhssssssssSDessseDwsSssSShhhhkhO..............",".............OhhhhkhsssssssssSSSSSSSwwDSsSShhhhkhhO.............",".............OhhhhkhsssssswsssSSSSSswwsssSSShhhkhhOOOO..........",".............OhhhhkhsssssswwsssssssswWsssSSShhhkhhhhhkO.........",".............OhhhhkhsssssswwsssssssDwWsssSSShhhkhhhhHhO.........",".............OhhhhkhOssssswWsssssDDswWsssSSOhhhkhkhhhhO.........",".............OhhhhkhOssssswWDDDDDssswWsssSSOhhhhhhhhhhkO........",".............OhhhhkO.OssssssTTTTTTTssssssSOOhhhhhhhHhhhO........",".............OhhhhhO..OsssssssssssssSSSSSO.OhhhhhhkhhhhO........",".............OhhhhhO...OssssssssssssSSSSO..OhhhhhhhhhkO.........",".............OhhhhhO....OsssssssssssSSSO...OhhhhhhhhHhO.........",".............OhHhhhO....OsDsssssssssSSDO...OhhhhhkhhhhO.........",".............OhhhhhO....OsSDDDDDDDDDDDsO....OhhhhOhhhhkO........",".............OhhhhhO....OsSSSSSSSSSSSSsO....OhhhhOhHhhhO........",".............OhhhhhO...OssssssssssssSSssO...OhhhhOkhhhhO........","............OhhhhhhO...OssssssssssssSSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOssssssssssssSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllsssssssssssssSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."],"smirk-talk":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhssBBBBsssssssssssscsSShhhhhO.OOsO..........","...........OssOOhhhhhsBBBBBBsssssssssssscSShhhhhOOssO...........","...........OsSshhhhkhBBSSSSBBssssssssssscSShhhkhsssDO...........","............OsShhhhkhBSssssSBsssssssssssBBBBhhkhhsDO............","............OsShhHhkhSeeeeeeesssssssBBBBBBBBhhkhhsDO............","............OsshhHhkhesEEaaEssssssssSSSSSSShhhkhhDO.............",".............OshhhhkhsEEEaeEEssssssseeeeeeeehhkhhsO.............",".............OshhhhkhsEEEaeEEssTssssEEeaEEEhhhkhhsO.............","..............OhhhhkhssEEaaEsssTsssssEaaEEchhhkhhO..............","..............OhhhhkhssSSSSSsssTssSssSSSSSchhhkhhO..............","..............OhhhhkhssssssssssTssSssssssSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssssssssssTTssssssssSShhhhkhO..............",".............OhhHhkhssssssssSDessseDwssssSShhhhkhO..............",".............OhhhhkhsssssssssSSSSSSSwwsssSShhhhkhhO.............",".............OhhhhkhsssssswsssSSSSSswwSssSSShhhkhhOOOO..........",".............OhhhhkhsssssswwsssssssswWsssSSShhhkhhhhhkO.........",".............OhhhhkhsssssswwssssssDDwWsssSSShhhkhhhhHhO.........",".............OhhhhkhOssssswWDDDDDDmmwWsssSSOhhhkhkhhhhO.........",".............OhhhhkhOssssswWmmmmmmsswWsssSSOhhhhhhhhhhkO........",".............OhhhhkO.OssssssDDDDDDDssssssSOOhhhhhhhHhhhO........",".............OhhhhhO..OssssssTTTTTssSSSSSO.OhhhhhhkhhhhO........",".............OhhhhhO...OssssssssssssSSSSO..OhhhhhhhhhkO.........",".............OhhhhhO....OsssssssssssSSSO...OhhhhhhhhHhO.........",".............OhHhhhO....OsDsssssssssSSDO...OhhhhhkhhhhO.........",".............OhhhhhO....OsSDDDDDDDDDDDsO....OhhhhOhhhhkO........",".............OhhhhhO....OsSSSSSSSSSSSSsO....OhhhhOhHhhhO........",".............OhhhhhO...OssssssssssssSSssO...OhhhhOkhhhhO........","............OhhhhhhO...OssssssssssssSSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOssssssssssssSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllsssssssssssssSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."],"proud":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhsssTTssssssssssssscsSShhhhhO.OOsO..........","...........OssOOhhhhhssTBBBsssssssssssBBcSShhhhhOOssO...........","...........OsSshhhhkhsBBBBBBBsssssssBBBBBBBhhhkhsssDO...........","............OsShhhhkhBBBSSSBBsssssssBBSScBBBhhkhhsDO............","............OsShhHhkhBSSsssSSsssssssSSssscSBhhkhhsDO............","............OsshhHhkhSssssssssssssssssssscShhhkhhDO.............",".............OshhhhkhssseeessssssssssseeecShhhkhhsO.............",".............OshhhhkhssesssesssTsssssesssechhhkhhsO.............","..............OhhhhkhsesssssessTssssessssSehhhkhhO..............","..............OhhhhkhssTTTTTsssTssSssTTTTTchhhkhhO..............","..............OhhhhkhssssssssssTssSssssssSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssTsssssssTTssssssssSShhhhkhO..............",".............OhhHhkhsssswwssSDessseDSsswwSShhhhkhO..............",".............OhhhhkhsssDwwsssSSSSSSSssswwDShhhhkhhO.............",".............OhhhhkhsssswwDDDDDDDDDDDDDwwSSShhhkhhOOOO..........",".............OhhhhkhsssswWWWWWWWWWWWWWWwWSSShhhkhhhhhkO.........",".............OhhhhkhsssswWWWWWWWWWWWWWWwWSSShhhkhhhhHhO.........",".............OhhhhkhOssswWmmmmmmmmmmmmswWSSOhhhkhkhhhhO.........",".............OhhhhkhOssswWmmmmmmmmmmmmswWSSOhhhhhhhhhhkO........",".............OhhhhkO.OsswWsmmmmmmmmmmsswWSOOhhhhhhhHhhhO........",".............OhhhhhO..OsssssssssssssSSSSSO.OhhhhhhkhhhhO........",".............OhhhhhO...OssssDDDDDDDDDSSSO..OhhhhhhhhhkO.........",".............OhhhhhO....OssssTTTTTTTSSSO...OhhhhhhhhHhO.........",".............OhHhhhO....OsDsssssssssSSDO...OhhhhhkhhhhO.........",".............OhhhhhO....OsSDDDDDDDDDDDsO....OhhhhOhhhhkO........",".............OhhhhhO....OsSSSSSSSSSSSSsO....OhhhhOhHhhhO........",".............OhhhhhO...OssssssssssssSSssO...OhhhhOkhhhhO........","............OhhhhhhO...OssssssssssssSSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOssssssssssssSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllsssssssssssssSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."],"proud-talk":["................................................................","................................................................","................................................................","................................................................","................................................................","................................................................","...........................O....................................","........................OOOHOOOOOOOOOO..........................","......................OOHHHhhhhhhhhhhhOO........................",".....................OHHhhhhhhhhhhkhhhhhOO......................","....................OHhhhhkhhhhhhhhkhhhhkhO.....................","...................OHhhhhkhhhhhhhhhkhhhhhkhO....................","...................OhhhhkhhhhhhhhhhhkhhhhhkhO...................","................OOOhhhhkhhhhhhhhhhhhkhhhhhkhhOOO................","...............OhhhhhhkhhhhhhhhhhhhhhkhhhhhkhhhhO...............","...............OhhhhhhhhhhhhhhhhhhhhhhhhhhhhkhhhO...............","...............OhhhhhhhhhhhhhhshhhshhhhhhhhhhhhhO...............","...........O...OhhhhhhhssssssssshsssssscsshhhhhhO...O...........","..........OsOO.OhhhhhsssTTssssssssssssscsSShhhhhO.OOsO..........","...........OssOOhhhhhssTBBBsssssssssssBBcSShhhhhOOssO...........","...........OsSshhhhkhsBBBBBBBsssssssBBBBBBBhhhkhsssDO...........","............OsShhhhkhBBBSSSBBsssssssBBSScBBBhhkhhsDO............","............OsShhHhkhBSSsssSSsssssssSSssscSBhhkhhsDO............","............OsshhHhkhSssssssssssssssssssscShhhkhhDO.............",".............OshhhhkhssseeessssssssssseeecShhhkhhsO.............",".............OshhhhkhssesssesssTsssssesssechhhkhhsO.............","..............OhhhhkhsesssssessTssssessssSehhhkhhO..............","..............OhhhhkhssTTTTTsssTssSssTTTTTchhhkhhO..............","..............OhhhhkhssssssssssTssSssssssSSchhkhhO..............","..............OhhhhkhTsssssssssTssSssssssSSchhkhhO..............","..............OhhhkhhTsssssssssTssSssssssSShhhhkhO..............","..............OhhhkhhsTTTsssssssssSsssssSSShhhhkhO..............","..............OhHhkhhssssssssssTTssssssssSShhhhkhO..............",".............OhhHhkhssssswwsSDessseDSswwsSShhhhkhO..............",".............OhhhhkhssssswwssSSSSSSSsswwsSShhhhkhhO.............",".............OhhhhkhssssDwwsssSSSSSssswwDSSShhhkhhOOOO..........",".............OhhhhkhssssswWssssssssssswWsSSShhhkhhhhhkO.........",".............OhhhhkhssssswWDDDDDDDDDDDwWsSSShhhkhhhhHhO.........",".............OhhhhkhOssssssSSSSSSSSSSSsssSSOhhhkhkhhhhO.........",".............OhhhhkhOsssssssTTTTTTTTTssssSSOhhhhhhhhhhkO........",".............OhhhhkO.OsssssssssssssssssssSOOhhhhhhhHhhhO........",".............OhhhhhO..OsssssssssssssSSSSSO.OhhhhhhkhhhhO........",".............OhhhhhO...OssssssssssssSSSSO..OhhhhhhhhhkO.........",".............OhhhhhO....OsssssssssssSSSO...OhhhhhhhhHhO.........",".............OhHhhhO....OsDsssssssssSSDO...OhhhhhkhhhhO.........",".............OhhhhhO....OsSDDDDDDDDDDDsO....OhhhhOhhhhkO........",".............OhhhhhO....OsSSSSSSSSSSSSsO....OhhhhOhHhhhO........",".............OhhhhhO...OssssssssssssSSssO...OhhhhOkhhhhO........","............OhhhhhhO...OssssssssssssSSssO...OhhhhhhhhkO.........","............OhhhhhhOOOOOssssssssssssSSssOOOOOhhhhhhhHhO.........","............OhhhhhOOlllsssssssssssssSSssslllOOOOOkhhhhO.........","............OhhhhhllllssssssssssssssssssssllllO..OhhhhkO........","............OhhhhhlllssssssssssssssssssssssllllOOOhHhhhO........","..........OOOhhhhhllsssssssssssssssssssssssslllllskhhhhO........","........OOssshhhhhqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqhhhhkOO........",".......OsssTThhhhhlllllllllllllllllllllllllllllllhhhHhssO.......","......OssTTssKlllllllllllllllllllllllllllllllllllkhhhhSSSO......",".....OsTTssssKlllllllllllllllgggggggllllllllllllllhhhhkSSSO.....","....OsTssssssKlllllllllllllllgKKKKKgllllllllllllllhHhhhSSSSO....","...OssssssssslKllllllllllllllgKGGGKglllllllllllllggggggSSSSSO...","..OsssssssssslKKKKKKKKKKKKKKKgKKKKKgKKKKKKKKKKKKKGGGGGGSSSSSSO..","..OsssssssssllKllllllllllllllGGGGGGGllllllllllllllhhhhSSSSSSSO..",".OssssssssssllKlllllllllllllllllllllllllllllllllllhHhhSSSSSSSSO.",".OssssssssssllKllllllllllllllllllllllllllllllllllhhhhhhSSSSSSSO."]}};
+
+    // ===== What she says: face, words, and how long each voice clip runs (voice/clean/*.mp3) =====
+    const LINES = {"intro-1":{"face":"yell","text":"Cleric. CLERIC. On your feet.","len":2.61},"intro-2":{"face":"stern","text":"I've seen goblin dens with better floor discipline than this.","len":3.55},"intro-3":{"face":"stern","text":"You are not cleaning the room. You are cleaning what I point at.","len":3.79},"intro-4":{"face":"smirk","text":"Perfect is not on the menu tonight. Done is.","len":3.58},"intro-5":{"face":"yell","text":"Round one in ten seconds. Move.","len":2.46},"r1-start":{"face":"yell","text":"Round one. The floor. Every piece of clothing goes in the hamper. Don't sort it. Grab and toss.","len":7.47},"r1-sock":{"face":"smirk","text":"That sock is mocking you. Get it.","len":2.56},"r1-half":{"face":"stern","text":"Five minutes left. Keep tossing.","len":2.77},"r1-min":{"face":"yell","text":"One minute! If it's touching the floor, it's mine!","len":3.32},"r2-start":{"face":"stern","text":"Round two. The nightstands. Trash in the bin. Cups to the kitchen. Everything else in one pile on the bed.","len":7.5},"r2-half":{"face":"smirk","text":"Halfway. Is that a cup or a science project?","len":3.53},"r2-min":{"face":"yell","text":"One minute! Clear that surface!","len":2.82},"r3-start":{"face":"stern","text":"Round three. The pile. Anything with a home goes home. The rest goes in one box. That box is tomorrow's problem.","len":9.53},"r3-half":{"face":"stern","text":"Halfway. Don't read it. Don't try it on. Put it away.","len":6.35},"r3-min":{"face":"smirk","text":"One minute. Pull the covers up. Make it look like you meant it.","len":4.15},"r4-start":{"face":"yell","text":"Round four. Clear the lane. Nothing between you and your gear.","len":3.84},"r4-half":{"face":"smirk","text":"Halfway. Your walk pad misses you.","len":3.45},"r4-min":{"face":"yell","text":"One minute! A warrior does not climb over laundry to reach her weapon!","len":4.44},"time":{"face":"stern","text":"Time. Unfinished counts. Next round.","len":3.19},"bonus-start":{"face":"smirk","text":"Bonus round. Carry that hamper to the washer. Start one load. I'll wait.","len":4.96},"bonus-min":{"face":"stern","text":"One minute. Buttons pressed, Cleric?","len":3.27},"victory":{"face":"proud","text":"Look at that. A floor. Sixty XP, Cleric. Now sit down. You earned it.","len":5.77}};
+
+    // ===== The plan. Times are seconds from when the video starts. =====
+    const ROUNDS = [
+      { id: 'r1', label: 'Round 1 of 4', title: 'The Floor', mins: 10, xp: 15,
+        task: 'Every piece of clothing goes in the hamper. Don’t sort it. Don’t fold it. Grab and toss.',
+        lines: [[0.3, 'r1-start'], [150, 'r1-sock'], [300, 'r1-half'], [540, 'r1-min']] },
+      { id: 'r2', label: 'Round 2 of 4', title: 'The Nightstands', mins: 5, xp: 10,
+        task: 'Trash in the bin. Cups and dishes to the kitchen. Everything else in one pile on the bed.',
+        lines: [[0.3, 'r2-start'], [150, 'r2-half'], [240, 'r2-min']] },
+      { id: 'r3', label: 'Round 3 of 4', title: 'The Pile', mins: 5, xp: 10,
+        task: 'Anything with a home goes home. The rest goes in one box. Then pull the covers up.',
+        lines: [[0.3, 'r3-start'], [150, 'r3-half'], [240, 'r3-min']] },
+      { id: 'r4', label: 'Round 4 of 4', title: 'Clear the Lane', mins: 5, xp: 10,
+        task: 'Nothing between you and your exercise gear.',
+        lines: [[0.3, 'r4-start'], [150, 'r4-half'], [240, 'r4-min']] },
+      { id: 'bonus', label: 'Bonus round', title: 'The Washer', mins: 3, xp: 15, idle: 'smirk',
+        task: 'Carry the hamper to the washer. Start one load.',
+        lines: [[0.3, 'bonus-start'], [120, 'bonus-min']] },
+    ];
+    const LEAD = 4;           // quiet seconds while the TV wakes up
+    const INTRO_END = 33;     // round 1 starts here
+    const BREAK = 8;          // "Time!" between rounds
+    const VICTORY_HOLD = 30;
+
+    // Build the timeline: phases (what's on screen) and events (lines and sounds)
+    const PHASES = [];
+    const EVENTS = [];
+    PHASES.push({ kind: 'intro', start: 0, end: INTRO_END });
+    [[4.5, 'intro-1'], [8, 'intro-2'], [12.3, 'intro-3'], [16.8, 'intro-4'], [21, 'intro-5']]
+      .forEach(([at, key]) => EVENTS.push({ at, key }));
+    EVENTS.push({ at: LEAD, sound: 'chime' });
+    [INTRO_END - 3, INTRO_END - 2, INTRO_END - 1].forEach((at) => EVENTS.push({ at, sound: 'tick' }));
+    let t = INTRO_END;
+    ROUNDS.forEach((r, i) => {
+      const dur = r.mins * 60;
+      PHASES.push({ kind: 'round', round: i, start: t, end: t + dur });
+      EVENTS.push({ at: t, sound: 'go' });
+      r.lines.forEach(([at, key]) => EVENTS.push({ at: t + at, key }));
+      [3, 2, 1].forEach((s) => EVENTS.push({ at: t + dur - s, sound: 'tick' }));
+      t += dur;
+      if (i < ROUNDS.length - 1) {
+        PHASES.push({ kind: 'break', round: i, start: t, end: t + BREAK });
+        EVENTS.push({ at: t, sound: 'bell' });
+        EVENTS.push({ at: t + 0.5, key: 'time' });
+        t += BREAK;
+      }
+    });
+    PHASES.push({ kind: 'victory', start: t, end: t + VICTORY_HOLD });
+    EVENTS.push({ at: t, sound: 'fanfare' });
+    EVENTS.push({ at: t + 1.2, key: 'victory' });
+    const END = t + VICTORY_HOLD;
+    EVENTS.sort((a, b) => a.at - b.at);
+    const SAYS = EVENTS.filter((e) => e.key);
+
+    // ===== Drawing =====
+    const $ = (id) => document.getElementById(id);
+    const faceCache = {};
+    function faceCanvas(name) {
+      if (faceCache[name]) return faceCache[name];
+      const rows = PORTRAIT.frames[name];
+      const c = document.createElement('canvas');
+      c.width = c.height = 64;
+      const g = c.getContext('2d');
+      rows.forEach((row, y) => {
+        for (let x = 0; x < row.length; x++) {
+          const ch = row[x];
+          if (ch === '.') continue;
+          g.fillStyle = PORTRAIT.pal[ch];
+          g.fillRect(x, y, 1, 1);
+        }
+      });
+      return (faceCache[name] = c);
+    }
+
+    // A steady pseudo-random number for a moment, so the video and the live page match
+    const hash = (n) => { const s = Math.sin(n * 12.9898) * 43758.5453; return s - Math.floor(s); };
+    const mmss = (s) => { s = Math.max(0, Math.ceil(s - 1e-6)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+
+    function phaseAt(t) {
+      return PHASES.find((p) => t >= p.start && t < p.end) || PHASES[PHASES.length - 1];
+    }
+    function xpAt(t) {
+      let xp = 0;
+      PHASES.forEach((p) => { if (p.kind === 'round' && t >= p.end) xp += ROUNDS[p.round].xp; });
+      return xp;
+    }
+
+    /** Everything on screen at moment t, as plain data. */
+    function stateAt(t) {
+      const p = phaseAt(t);
+      const s = { face: 'stern', shake: 0, flash: 0, pop: '', timerClass: '', label: '', title: '', titleAlarm: false, task: '', timer: '', bubble: '', next: '', pips: [] };
+
+      // The line she's saying (or just said)
+      const said = SAYS.filter((e) => e.at <= t).pop();
+      const talking = said && t < said.at + LINES[said.key].len;
+      const recent = said && t < said.at + LINES[said.key].len + 3;
+      if (said && t < said.at + LINES[said.key].len + 14) s.bubble = LINES[said.key].text;
+
+      // Her face: the line's face while she talks and just after, otherwise the phase's resting face
+      let idle = 'stern';
+      if (p.kind === 'round' && ROUNDS[p.round].idle) idle = ROUNDS[p.round].idle;
+      if (p.kind === 'victory') idle = 'proud';
+      const face = recent ? LINES[said.key].face : idle;
+      if (talking && t > said.at + 0.3) {
+        const beat = Math.floor((t - said.at) * 4);
+        s.face = face + (hash(beat + said.at) > 0.3 ? '-talk' : '');
+      } else {
+        s.face = face;
+        // Blink now and then (stern only, the others have their own eyes)
+        if (face === 'stern' && hash(Math.floor(t * 4) * 7.13) > 0.93) s.face = 'stern-blink';
+      }
+      // Yells shake the screen and flash red for the first moment
+      if (said && LINES[said.key].face === 'yell' && t >= said.at && t < said.at + 0.75) {
+        const k = Math.floor(t * 8);
+        s.shake = [(hash(k) - .5) * 2.4, (hash(k + 3.3) - .5) * 1.6];
+        s.flash = 1 - (t - said.at) / 0.75;
+      }
+
+      // Round pips: done, now, still to come
+      s.pips = ROUNDS.map((r, i) => {
+        const rp = PHASES.find((q) => q.kind === 'round' && q.round === i);
+        if (t >= rp.end) return 'done';
+        if (t >= rp.start) return 'now';
+        return '';
+      });
+
+      if (p.kind === 'intro') {
+        s.label = 'The Brawnforge';
+        s.title = t < LEAD ? '' : 'Mara the Unbent has entered the bedroom.';
+        s.task = t < 21 ? '' : 'Round one starts in';
+        s.timer = t < 21 ? '' : mmss(INTRO_END - t);
+        s.next = 'Up first: The Floor, 10 minutes';
+        if (t >= LEAD && t < LEAD + 0.75) { const k = Math.floor(t * 8); s.shake = [(hash(k) - .5) * 2, (hash(k + 1.7) - .5) * 1.4]; }
+      } else if (p.kind === 'round') {
+        const r = ROUNDS[p.round];
+        const left = p.end - t;
+        s.label = r.label; s.title = r.title; s.task = r.task; s.timer = mmss(left);
+        if (left <= 60) s.timerClass = 'low';
+        const nr = ROUNDS[p.round + 1];
+        s.next = nr ? 'Next: ' + nr.title : 'Last one';
+      } else if (p.kind === 'break') {
+        const r = ROUNDS[p.round], nr = ROUNDS[p.round + 1];
+        s.label = r.label + ' done'; s.title = 'Time!'; s.titleAlarm = true;
+        s.task = 'Unfinished counts. Next up: ' + nr.title + ', ' + nr.mins + ' minutes.';
+        s.timer = mmss(p.end - t);
+        s.next = 'Next: ' + nr.title;
+        if (t - p.start < 2.5) s.pop = '+' + r.xp + ' XP';
+      } else {
+        s.label = 'Quest complete'; s.title = 'Bedroom reclaimed.';
+        s.task = 'Floor, nightstands, pile, lane, and a load in the wash.';
+        s.timer = '+60 XP';
+        s.next = 'Log it in the Hub';
+        if (t - p.start < 2.5) s.pop = '+' + ROUNDS[ROUNDS.length - 1].xp + ' XP';
+      }
+      s.xp = xpAt(t);
+      return s;
+    }
+
+    /** A short string that only changes when the picture changes (the video builder uses it). */
+    function keyAt(t) { return JSON.stringify(stateAt(t)); }
+
+    function renderAt(t) {
+      const s = stateAt(t);
+      const g = $('mara').getContext('2d');
+      g.clearRect(0, 0, 64, 64);
+      g.drawImage(faceCanvas(s.face), 0, 0);
+      $('screen').style.transform = s.shake ? `translate(${s.shake[0]}vw, ${s.shake[1]}vh)` : '';
+      $('flash').style.opacity = s.flash;
+      $('pop').textContent = s.pop; $('pop').style.opacity = s.pop ? 1 : 0;
+      $('label').textContent = s.label;
+      $('title').textContent = s.title; $('title').className = s.titleAlarm ? 'alarm' : '';
+      $('task').textContent = s.task;
+      $('timer').textContent = s.timer;
+      $('timer').className = 'timer ' + s.timerClass + (s.timer ? '' : ' hide');
+      $('bubble').textContent = s.bubble ? '“' + s.bubble + '”' : '';
+      $('bubble').className = 'bubble' + (s.bubble ? '' : ' empty');
+      $('next').textContent = s.next;
+      $('xp').textContent = s.xp;
+      $('pips').innerHTML = s.pips.map((c, i) => `<span class="pip ${c}${i === ROUNDS.length - 1 ? ' bonus' : ''}"></span>`).join('');
+    }
+
+    window.TIMELINE = { END, EVENTS, LINES };
+    window.keyAt = keyAt;
+    window.renderAt = renderAt;
+
+    // ===== Live mode: runs on its own clock and plays sound if allowed =====
+    const params = new URLSearchParams(location.search);
+    if (params.has('at')) {
+      renderAt(Number(params.get('at')) || 0);
+    } else if (!params.has('render')) {
+      const speed = Number(params.get('speed')) || 1;
+      const started = performance.now();
+      const sound = params.get('sound') !== '0';
+      let ctx = null, next = 0;
+      if (sound) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (Ctx) { ctx = new Ctx(); ctx.resume().catch(() => {}); setTimeout(() => { if (ctx.state !== 'running') $('soundNote').hidden = false; }, 1500); }
+      }
+      const TONES = {
+        chime: [[523.25, 659.25, 783.99, 1046.5], .16], go: [[1046.5], .25], tick: [[880], .12],
+        bell: [[783.99, 523.25], .22], fanfare: [[523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5], .14],
+      };
+      function beep(name) {
+        if (!ctx || ctx.state !== 'running') return;
+        const [notes, each] = TONES[name];
+        notes.forEach((f, i) => {
+          const o = ctx.createOscillator(), v = ctx.createGain(), st = ctx.currentTime + i * each;
+          o.type = 'square'; o.frequency.value = f;
+          v.gain.setValueAtTime(.0001, st); v.gain.exponentialRampToValueAtTime(.12, st + .01); v.gain.exponentialRampToValueAtTime(.0001, st + each);
+          o.connect(v).connect(ctx.destination); o.start(st); o.stop(st + each);
+        });
+      }
+      (function frame() {
+        const now = (performance.now() - started) / 1000 * speed;
+        while (next < EVENTS.length && EVENTS[next].at <= now) {
+          const e = EVENTS[next++];
+          if (now - e.at > 2) continue;   // skipped past it (fast mode)
+          if (!sound) continue;
+          if (e.sound) beep(e.sound);
+          if (e.key && speed === 1) new Audio('voice/clean/' + e.key + '.mp3').play().catch(() => {});
+        }
+        renderAt(Math.min(now, END - 0.01));
+        if (now < END) requestAnimationFrame(frame);
+      })();
+    }
+  </script>
+</body>
+</html>
